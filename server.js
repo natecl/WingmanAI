@@ -8,15 +8,27 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
 
-// OpenRouter Chat endpoint
-app.post('/chat', async (req, res) => {
+// Email Analyzer endpoint
+app.post('/analyze-email', async (req, res) => {
     try {
-        const { message } = req.body;
+        const { email, context } = req.body;
 
-        if (!message) {
-            return res.status(400).json({ error: 'Message is required' });
+        if (!email || !context) {
+            return res.status(400).json({ error: 'Both email and context are required' });
         }
+
+        const systemPrompt = `You are an expert email analyzer. The user will provide an email they have written and the context/purpose of the email. Analyze the email and provide actionable feedback on:
+
+1. **Grammar & Spelling**: Identify any grammar, spelling, or punctuation errors.
+2. **Tone & Formality**: Evaluate whether the tone is appropriate for the given context.
+3. **Clarity & Structure**: Assess how clear and well-organized the email is.
+4. **Suggestions**: Provide specific, actionable suggestions for improvement.
+
+Be concise but thorough. Format your response with clear sections.`;
+
+        const userMessage = `Context/Purpose: ${context}\n\nEmail to analyze:\n${email}`;
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -27,7 +39,8 @@ app.post('/chat', async (req, res) => {
             body: JSON.stringify({
                 "model": "google/gemini-2.0-flash-001",
                 "messages": [
-                    { "role": "user", "content": message }
+                    { "role": "system", "content": systemPrompt },
+                    { "role": "user", "content": userMessage }
                 ]
             })
         });
