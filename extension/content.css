@@ -313,6 +313,438 @@
 
 
 /* =========================================================
+   FOLLOW-UP REMINDER TOAST
+========================================================= */
+
+.be-reminder-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 999999;
+    width: 300px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(66, 133, 244, 0.18);
+    font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+    transition: opacity 0.28s ease, transform 0.28s ease;
+    pointer-events: none;
+}
+
+.be-reminder-toast.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.be-reminder-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 8px;
+}
+
+.be-reminder-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a73e8;
+}
+
+.be-reminder-title svg {
+    flex-shrink: 0;
+    stroke: #1a73e8;
+}
+
+.be-reminder-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9aa0a6;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.be-reminder-close:hover {
+    color: #5f6368;
+    background: #f1f3f4;
+}
+
+.be-reminder-body {
+    padding: 0 14px 12px;
+    font-size: 13px;
+    color: #5f6368;
+    line-height: 1.5;
+}
+
+.be-reminder-body strong {
+    color: #202124;
+    font-weight: 500;
+}
+
+.be-reminder-options {
+    display: flex;
+    gap: 6px;
+    padding: 10px 14px 14px;
+    border-top: 1px solid #f1f3f4;
+    flex-wrap: wrap;
+}
+
+.be-reminder-btn {
+    flex: 1;
+    min-width: 56px;
+    padding: 7px 10px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    background: white;
+    font-size: 12px;
+    font-weight: 500;
+    color: #1a73e8;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.be-reminder-btn:hover {
+    background: #e8f0fe;
+    border-color: #1a73e8;
+}
+
+.be-reminder-skip {
+    color: #9aa0a6;
+    border-color: transparent;
+}
+
+.be-reminder-skip:hover {
+    background: #f1f3f4;
+    border-color: #dadce0;
+    color: #5f6368;
+}
+
+.be-reminder-custom {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+}
+
+.be-custom-num {
+    width: 60px;
+    padding: 7px 8px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #202124;
+    background: white;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.be-custom-num::-webkit-outer-spin-button,
+.be-custom-num::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.be-custom-num:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+}
+
+.be-custom-num.be-custom-num-error {
+    border-color: #ea4335;
+    box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.15);
+}
+
+.be-custom-unit {
+    flex: 1;
+    padding: 7px 6px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #202124;
+    background: white;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235f6368' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 7px center;
+    padding-right: 22px;
+}
+
+.be-custom-unit:focus {
+    border-color: #1a73e8;
+}
+
+.be-custom-back {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.be-reminder-confirm {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1e8e3e;
+}
+
+.be-reminder-confirm svg {
+    flex-shrink: 0;
+    stroke: #1e8e3e;
+}
+
+
+/* =========================================================
+   GMAIL REMINDERS PANEL (header chip + dropdown)
+========================================================= */
+
+/* Fixed chip floating below Gmail's header, top-right of the page */
+.be-reminders-panel {
+    position: fixed;
+    top: 72px;
+    right: 270px;
+    font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    z-index: 9999;
+}
+
+/* ---- Trigger chip ---- */
+.be-panel-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1px solid #dadce0;
+    border-radius: 20px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #5f6368;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.be-panel-trigger:hover {
+    background: #f8f9fa;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    color: #202124;
+}
+
+.be-reminders-panel.be-panel-open .be-panel-trigger {
+    background: rgba(26, 115, 232, 0.08);
+    color: #1a73e8;
+}
+
+.be-panel-trigger svg {
+    flex-shrink: 0;
+}
+
+.be-panel-trigger svg:first-child {
+    stroke: #5f6368;
+    transition: stroke 0.15s ease;
+}
+
+.be-reminders-panel.be-panel-open .be-panel-trigger svg:first-child {
+    stroke: #1a73e8;
+}
+
+.be-panel-label {
+    letter-spacing: 0.01em;
+}
+
+.be-panel-badge {
+    background: #ea4335;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.be-panel-chevron {
+    stroke: #9aa0a6;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.be-reminders-panel.be-panel-open .be-panel-chevron {
+    transform: rotate(180deg);
+}
+
+/* ---- Dropdown body ---- */
+.be-panel-body {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    z-index: 10000;
+}
+
+.be-reminders-panel.be-panel-open .be-panel-body {
+    display: block;
+    animation: be-dropdown-in 0.18s ease;
+}
+
+@keyframes be-dropdown-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Dropdown header label */
+.be-panel-body::before {
+    content: "Follow-up Reminders";
+    display: block;
+    padding: 10px 14px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #80868b;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.be-panel-empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #5f6368;
+}
+
+.be-panel-empty svg {
+    stroke: #34a853;
+    flex-shrink: 0;
+}
+
+/* ---- Reminder rows ---- */
+.be-panel-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.12s ease;
+    cursor: default;
+}
+
+.be-panel-item:last-child {
+    border-bottom: none;
+}
+
+.be-panel-item:hover {
+    background: #f8f9fa;
+}
+
+.be-panel-item-fired {
+    background: #fff8f7;
+    border-left: 3px solid #ea4335;
+}
+
+.be-panel-item-fired:hover {
+    background: #ffefed;
+}
+
+.be-panel-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #1a73e8;
+    box-shadow: 0 0 4px rgba(26, 115, 232, 0.5);
+}
+
+.be-panel-dot-fired {
+    background: #ea4335;
+    box-shadow: none;
+    animation: be-gm-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes be-gm-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.65); }
+    70%  { box-shadow: 0 0 0 5px rgba(234, 67, 53, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
+}
+
+.be-panel-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.be-panel-subject {
+    font-size: 13px;
+    font-weight: 500;
+    color: #202124;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.be-panel-time {
+    font-size: 11px;
+    color: #80868b;
+    margin-top: 2px;
+}
+
+.be-panel-time-fired {
+    color: #ea4335;
+    font-weight: 600;
+}
+
+.be-panel-dismiss {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #9aa0a6;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s ease, background 0.12s ease;
+}
+
+.be-panel-dismiss:hover {
+    color: #ea4335;
+    background: rgba(234, 67, 53, 0.1);
+    transform: none;
+}
+
+
+/* =========================================================
    DARK MODE SUPPORT (Gmail Dark Theme)
 ========================================================= */
 
@@ -386,5 +818,56 @@
         background: #35363a;
         border-color: #5f6368;
         color: #bdc1c6;
+    }
+
+    .be-reminder-toast {
+        background: #2d2e30;
+        border-color: rgba(138, 180, 248, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .be-reminder-title {
+        color: #8ab4f8;
+    }
+
+    .be-reminder-title svg {
+        stroke: #8ab4f8;
+    }
+
+    .be-reminder-body {
+        color: #bdc1c6;
+    }
+
+    .be-reminder-body strong {
+        color: #e8eaed;
+    }
+
+    .be-reminder-options {
+        border-top-color: #3c4043;
+    }
+
+    .be-reminder-btn {
+        background: #35363a;
+        border-color: #5f6368;
+        color: #8ab4f8;
+    }
+
+    .be-reminder-btn:hover {
+        background: #3c4043;
+        border-color: #8ab4f8;
+    }
+
+    .be-reminder-skip {
+        color: #9aa0a6;
+        border-color: transparent;
+    }
+
+    .be-reminder-skip:hover {
+        background: #3c4043;
+        border-color: #5f6368;
+    }
+
+    .be-reminder-close:hover {
+        background: #3c4043;
     }
 }

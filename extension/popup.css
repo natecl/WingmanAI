@@ -267,6 +267,190 @@ button:disabled {
     animation: fadeIn 0.3s ease;
 }
 
+/* =====================================================
+   FOLLOW-UP REMINDERS SECTION
+===================================================== */
+
+.reminders-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    animation: fadeIn 0.3s ease;
+}
+
+.reminders-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.reminders-title-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--primary);
+}
+
+.reminders-title-row svg {
+    stroke: var(--primary);
+    flex-shrink: 0;
+}
+
+.reminders-badge {
+    background: var(--primary);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+}
+
+.reminder-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s ease, opacity 0.25s ease, transform 0.25s ease;
+}
+
+.reminder-item:last-child {
+    border-bottom: none;
+}
+
+.reminder-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.reminder-item.ri-removing {
+    opacity: 0;
+    transform: translateX(10px);
+}
+
+.ri-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--primary);
+    flex-shrink: 0;
+    box-shadow: 0 0 6px var(--primary);
+}
+
+.ri-dot.ri-dot-overdue {
+    background: #ff6b6b;
+    box-shadow: 0 0 6px #ff6b6b;
+}
+
+.ri-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ri-subject {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ri-due {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.ri-due-overdue {
+    color: #ff6b6b;
+    font-weight: 500;
+}
+
+.reminder-item.ri-fired {
+    background: rgba(255, 107, 107, 0.07);
+    border-left: 2px solid #ff6b6b;
+}
+
+.ri-dot.ri-dot-fired {
+    background: #ff6b6b;
+    animation: ri-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ri-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+    70%  { box-shadow: 0 0 0 6px rgba(255, 107, 107, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+}
+
+.ri-due.ri-due-fired {
+    color: #ff6b6b;
+    font-weight: 600;
+}
+
+.ri-empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+.ri-empty svg {
+    stroke: #4caf50;
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.ri-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.ri-open-btn,
+.ri-dismiss-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    transition: all 0.15s ease;
+}
+
+.ri-open-btn:hover {
+    background: rgba(142, 125, 255, 0.15);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: none;
+}
+
+.ri-dismiss-btn:hover {
+    background: rgba(255, 107, 107, 0.12);
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+    transform: none;
+}
+
 .raw-card {
     background: var(--card-bg);
     border: 1px solid var(--border);

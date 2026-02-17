@@ -25,13 +25,16 @@ Return ONLY the JSON array.`;
 
 function init() {
     console.log("[BetterEmail] Initializing...");
-    
+
     // Check every second for compose windows
     setInterval(scanForComposeWindows, 1000);
-    
+
     // Also watch for DOM changes
     const observer = new MutationObserver(scanForComposeWindows);
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // Inject the persistent follow-up reminders panel into Gmail
+    initRemindersPanel();
 }
 
 if (document.body) {
@@ -174,6 +177,7 @@ function findAnyVisibleEditor() {
 
 function attachAnalyzer(composeBox, initialEditor) {
     composeBox.dataset.beAttached = "true";
+    attachSendListener(composeBox);
     
     // Store editor reference
     let storedEditor = initialEditor;
@@ -347,6 +351,357 @@ function showError(panel, message) {
         </div>
     `;
 }
+
+/* =========================================================
+   FOLLOW-UP REMINDER
+========================================================= */
+
+function attachSendListener(composeBox) {
+    // Try immediately, then poll until found (Gmail renders toolbar asynchronously)
+    if (!trySendButton(composeBox)) {
+        let attempts = 0;
+        const poll = setInterval(() => {
+            attempts++;
+            if (trySendButton(composeBox) || attempts > 20 || !document.contains(composeBox)) {
+                clearInterval(poll);
+            }
+        }, 500);
+    }
+}
+
+function trySendButton(composeBox) {
+    const sendSelectors = [
+        '[data-tooltip^="Send"]',
+        '[aria-label^="Send"]',
+        '.aoO[role="button"]',
+        '.T-I.aoO',
+        'div.T-I[role="button"].aoO'
+    ];
+
+    let sendBtn = null;
+
+    // First: search inside compose box
+    for (const sel of sendSelectors) {
+        const el = composeBox.querySelector(sel);
+        if (el) { sendBtn = el; break; }
+    }
+
+    // Fallback: search document-wide and pick the one closest to the compose box
+    if (!sendBtn) {
+        for (const sel of sendSelectors) {
+            const candidates = document.querySelectorAll(sel);
+            for (const el of candidates) {
+                const rect = el.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) { sendBtn = el; break; }
+            }
+            if (sendBtn) break;
+        }
+    }
+
+    if (!sendBtn || sendBtn.dataset.beReminderAttached) return !!sendBtn;
+
+    sendBtn.dataset.beReminderAttached = "true";
+    sendBtn.addEventListener("click", () => {
+        const subject = document.querySelector('input[name="subjectbox"]')?.value?.trim() || "your email";
+        setTimeout(() => showReminderPrompt(subject), 600);
+    });
+
+    console.log("[BetterEmail] Send button listener attached");
+    return true;
+}
+
+function showReminderPrompt(subject) {
+    // Remove any existing toast
+    document.querySelector(".be-reminder-toast")?.remove();
+
+    const toast = document.createElement("div");
+    toast.className = "be-reminder-toast";
+    toast.innerHTML = `
+        <div class="be-reminder-header">
+            <div class="be-reminder-title">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                Follow-up Reminder
+            </div>
+            <button class="be-reminder-close" aria-label="Dismiss">&#x2715;</button>
+        </div>
+        <div class="be-reminder-body">
+            No reply to <strong>${escapeHTML(subject)}</strong>? Remind me in:
+        </div>
+        <div class="be-reminder-options">
+            <button class="be-reminder-btn" data-ms="${1 * 24 * 60 * 60 * 1000}" data-label="1 day">1 Day</button>
+            <button class="be-reminder-btn" data-ms="${3 * 24 * 60 * 60 * 1000}" data-label="3 days">3 Days</button>
+            <button class="be-reminder-btn" data-ms="${7 * 24 * 60 * 60 * 1000}" data-label="1 week">1 Week</button>
+            <button class="be-reminder-btn be-reminder-custom-trigger">Custom</button>
+            <button class="be-reminder-btn be-reminder-skip" data-dismiss>Skip</button>
+        </div>
+    `;
+
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("visible"));
+
+    const autoDismiss = setTimeout(() => dismissToast(toast), 15000);
+    toast.dataset.autoDismiss = autoDismiss;
+
+    toast.querySelector(".be-reminder-close").addEventListener("click", () => dismissToast(toast));
+    attachQuickOptionListeners(toast, subject);
+}
+
+function attachQuickOptionListeners(toast, subject) {
+    toast.querySelector("[data-dismiss]").addEventListener("click", () => dismissToast(toast));
+
+    toast.querySelectorAll("[data-ms]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            scheduleReminder(subject, parseInt(btn.dataset.ms));
+            showReminderConfirm(toast, btn.dataset.label);
+        });
+    });
+
+    toast.querySelector(".be-reminder-custom-trigger").addEventListener("click", () => {
+        showCustomInput(toast, subject);
+    });
+}
+
+function showCustomInput(toast, subject) {
+    const options = toast.querySelector(".be-reminder-options");
+    options.innerHTML = `
+        <div class="be-reminder-custom">
+            <input type="number" class="be-custom-num" min="1" max="9999" value="2" placeholder="2">
+            <select class="be-custom-unit">
+                <option value="min">Minutes</option>
+                <option value="hr">Hours</option>
+                <option value="day" selected>Days</option>
+            </select>
+            <button class="be-reminder-btn be-custom-set">Set</button>
+        </div>
+        <button class="be-reminder-btn be-reminder-skip be-custom-back">&#8592; Back</button>
+    `;
+
+    const numInput = toast.querySelector(".be-custom-num");
+    const unitSelect = toast.querySelector(".be-custom-unit");
+
+    // Stop Gmail from swallowing keyboard events on our inputs
+    [numInput, unitSelect].forEach(el => {
+        el.addEventListener("keydown", e => e.stopPropagation());
+        el.addEventListener("keyup", e => e.stopPropagation());
+        el.addEventListener("keypress", e => e.stopPropagation());
+    });
+
+    toast.querySelector(".be-custom-set").addEventListener("click", () => {
+        const val = parseInt(numInput.value);
+        const unit = unitSelect.value;
+        if (!val || val < 1) {
+            numInput.classList.add("be-custom-num-error");
+            numInput.focus();
+            return;
+        }
+        const multipliers = { min: 60 * 1000, hr: 60 * 60 * 1000, day: 24 * 60 * 60 * 1000 };
+        const unitNames = { min: "minute", hr: "hour", day: "day" };
+        const ms = val * multipliers[unit];
+        const label = `${val} ${unitNames[unit]}${val !== 1 ? "s" : ""}`;
+        scheduleReminder(subject, ms);
+        showReminderConfirm(toast, label);
+    });
+
+    // Also allow Enter to submit
+    numInput.addEventListener("keydown", e => {
+        e.stopPropagation();
+        if (e.key === "Enter") toast.querySelector(".be-custom-set").click();
+    });
+
+    toast.querySelector(".be-custom-back").addEventListener("click", () => {
+        // Restore quick options
+        options.innerHTML = `
+            <button class="be-reminder-btn" data-ms="${1 * 24 * 60 * 60 * 1000}" data-label="1 day">1 Day</button>
+            <button class="be-reminder-btn" data-ms="${3 * 24 * 60 * 60 * 1000}" data-label="3 days">3 Days</button>
+            <button class="be-reminder-btn" data-ms="${7 * 24 * 60 * 60 * 1000}" data-label="1 week">1 Week</button>
+            <button class="be-reminder-btn be-reminder-custom-trigger">Custom</button>
+            <button class="be-reminder-btn be-reminder-skip" data-dismiss>Skip</button>
+        `;
+        attachQuickOptionListeners(toast, subject);
+    });
+
+    numInput.focus();
+    numInput.select();
+}
+
+function showReminderConfirm(toast, label) {
+    clearTimeout(parseInt(toast.dataset.autoDismiss));
+    toast.innerHTML = `
+        <div class="be-reminder-confirm">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            <span>Reminder set for ${label}!</span>
+        </div>
+    `;
+    setTimeout(() => dismissToast(toast), 2500);
+}
+
+function dismissToast(toast) {
+    clearTimeout(parseInt(toast.dataset.autoDismiss));
+    toast.classList.remove("visible");
+    setTimeout(() => toast.remove(), 300);
+}
+
+function scheduleReminder(subject, ms) {
+    const id = "be_reminder_" + Date.now();
+    const dueTime = Date.now() + ms;
+    try {
+        chrome.runtime.sendMessage({ type: "SET_REMINDER", id, subject, dueTime });
+    } catch (e) {
+        console.warn("[BetterEmail] Extension context invalidated — please refresh the page.", e);
+    }
+}
+
+function escapeHTML(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+
+/* =========================================================
+   GMAIL REMINDERS PANEL
+========================================================= */
+
+function initRemindersPanel() {
+    // Try immediately, then watch for Gmail's header to render
+    if (!tryInjectPanel()) {
+        const observer = new MutationObserver(() => {
+            if (tryInjectPanel()) observer.disconnect();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+}
+
+function tryInjectPanel() {
+    if (document.getElementById("be-reminders-panel")) return true;
+
+    // Wait for body to be available
+    if (!document.body) return false;
+
+    const panel = document.createElement("div");
+    panel.id = "be-reminders-panel";
+    panel.className = "be-reminders-panel";
+    panel.innerHTML = `
+        <button class="be-panel-trigger" id="be-panel-toggle" type="button">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="be-panel-label">Follow-ups</span>
+            <span class="be-panel-badge" id="be-panel-badge"></span>
+            <svg class="be-panel-chevron" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+        </button>
+        <div class="be-panel-body" id="be-panel-body"></div>
+    `;
+
+    document.body.appendChild(panel);
+
+    // Toggle dropdown open/closed
+    panel.querySelector("#be-panel-toggle").addEventListener("click", e => {
+        e.stopPropagation();
+        panel.classList.toggle("be-panel-open");
+    });
+
+    // Close when clicking anywhere outside the panel
+    document.addEventListener("click", e => {
+        if (!panel.contains(e.target)) panel.classList.remove("be-panel-open");
+    });
+
+    // Load and render on init
+    chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
+        renderPanelReminders(be_reminders);
+    });
+
+    // Re-render whenever storage changes
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === "local" && changes.be_reminders) {
+            renderPanelReminders(changes.be_reminders.newValue || []);
+        }
+    });
+
+    return true;
+}
+
+function formatPanelTime(dueTime) {
+    const diff = dueTime - Date.now();
+    if (diff <= 0) return "Overdue";
+    const mins = Math.floor(diff / 60000);
+    const hrs  = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (days >= 1) return `In ${days}d`;
+    if (hrs  >= 1) return `In ${hrs}h`;
+    return `In ${mins}m`;
+}
+
+function renderPanelReminders(reminders) {
+    const body  = document.getElementById("be-panel-body");
+    const badge = document.getElementById("be-panel-badge");
+    const panel = document.getElementById("be-reminders-panel");
+    if (!body || !badge || !panel) return;
+
+    const hasFired = reminders.some(r => r.fired);
+
+    if (!reminders.length) {
+        badge.textContent = "";
+        badge.style.display = "none";
+        body.innerHTML = `
+            <div class="be-panel-empty">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>
+                </svg>
+                All caught up!
+            </div>
+        `;
+        return;
+    }
+
+    badge.style.display = "flex";
+    badge.textContent = reminders.length;
+
+    // Auto-open dropdown when a fired reminder arrives
+    if (hasFired) panel.classList.add("be-panel-open");
+
+    const sorted = [...reminders].sort((a, b) => {
+        if (a.fired && !b.fired) return -1;
+        if (!a.fired && b.fired) return 1;
+        return a.dueTime - b.dueTime;
+    });
+
+    body.innerHTML = "";
+
+    sorted.forEach(r => {
+        const isFired = r.fired === true;
+        const timeLabel = isFired ? "Follow up now!" : formatPanelTime(r.dueTime);
+
+        const item = document.createElement("div");
+        item.className = "be-panel-item" + (isFired ? " be-panel-item-fired" : "");
+        item.innerHTML = `
+            <div class="be-panel-dot ${isFired ? "be-panel-dot-fired" : ""}"></div>
+            <div class="be-panel-info">
+                <div class="be-panel-subject" title="${escapeHTML(r.subject)}">${escapeHTML(r.subject)}</div>
+                <div class="be-panel-time ${isFired ? "be-panel-time-fired" : ""}">${timeLabel}</div>
+            </div>
+            <button class="be-panel-dismiss" title="Dismiss">&#x2715;</button>
+        `;
+
+        item.querySelector(".be-panel-dismiss").addEventListener("click", e => {
+            e.stopPropagation();
+            chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
+                chrome.storage.local.set({
+                    be_reminders: be_reminders.filter(rem => rem.id !== r.id)
+                });
+            });
+        });
+
+        body.appendChild(item);
+    });
+}
+
 
 function renderResults(panel, raw) {
     panel.classList.add("visible");
