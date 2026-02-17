@@ -207,3 +207,25 @@
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
 }
+
+/* Grab Button */
+#be-grab-btn {
+    background: rgba(142, 125, 255, 0.15);
+    color: var(--be-primary);
+    border: 1px solid rgba(142, 125, 255, 0.3);
+    padding: 10px;
+    border-radius: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#be-grab-btn:hover {
+    background: rgba(142, 125, 255, 0.25);
+}
+
+/* Results visible state */
+#be-results.visible {
+    display: block;
+    margin-top: 20px;
+}

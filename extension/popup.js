@@ -1,14 +1,60 @@
-const form = document.getElementById('analyze-form');
-const emailInput = document.getElementById('email-input');
-const contextInput = document.getElementById('context-input');
-const analyzeBtn = document.getElementById('analyze-btn');
-const resultsContainer = document.getElementById('results-container');
+/**
+ * BetterEmail V2
+ * Extension Popup Controller
+ */
 
-function showError(message) {
-    resultsContainer.innerHTML = `<div class="error-card"><span class="error-text">${message}</span></div>`;
+const API_URL = "http://localhost:3000/analyze-email";
+
+/* =====================================================
+   DOM REFERENCES
+===================================================== */
+
+const form = document.getElementById("analyze-form");
+const emailInput = document.getElementById("email-input");
+const contextInput = document.getElementById("context-input");
+const analyzeBtn = document.getElementById("analyze-btn");
+const resultsContainer = document.getElementById("results-container");
+
+
+/* =====================================================
+   SYSTEM PROMPT
+===================================================== */
+
+const SYSTEM_PROMPT = `You are an expert email analyzer. The user will provide an email they have written and the context/purpose of the email.
+
+Analyze the email and respond with a JSON array. Each element must have:
+- "title"
+- "icon"
+- "content"
+
+Return exactly these 5 sections in order:
+1. Grammar & Spelling — identify any grammar, spelling, or punctuation errors.
+2. Tone & Formality — evaluate whether the tone is appropriate for the given context.
+3. Clarity & Structure — assess how clear and well-organized the email is.
+4. Suggestions — provide specific, actionable improvements.
+5. Overall Verdict — a brief overall assessment.
+
+IMPORTANT: Return ONLY the JSON array.`;
+
+
+/* =====================================================
+   UI HELPERS
+===================================================== */
+
+function setLoading(isLoading) {
+    analyzeBtn.disabled = isLoading;
+    analyzeBtn.textContent = isLoading ? "Analyzing..." : "Analyze";
 }
 
-function showLoading() {
+function showError(message) {
+    resultsContainer.innerHTML = `
+        <div class="error-card">
+            <span class="error-text">${message}</span>
+        </div>
+    `;
+}
+
+function showLoadingIndicator() {
     resultsContainer.innerHTML = `
         <div class="loading-indicator">
             <div class="loading-dots">
@@ -22,10 +68,12 @@ function showLoading() {
 }
 
 function renderSections(sections) {
-    resultsContainer.innerHTML = '';
-    sections.forEach((section) => {
-        const card = document.createElement('div');
-        card.className = 'section-card';
+    resultsContainer.innerHTML = "";
+
+    sections.forEach(section => {
+        const card = document.createElement("div");
+        card.className = "section-card";
+
         card.innerHTML = `
             <div class="section-card-header">
                 <span class="section-icon">${section.icon}</span>
@@ -33,87 +81,113 @@ function renderSections(sections) {
             </div>
             <div class="section-content">${section.content}</div>
         `;
+
         resultsContainer.appendChild(card);
     });
 }
 
 function renderRawText(text) {
-    resultsContainer.innerHTML = `<div class="raw-card">${text}</div>`;
+    resultsContainer.innerHTML = `
+        <div class="raw-card">${text}</div>
+    `;
 }
 
-const SYSTEM_PROMPT = `You are an expert email analyzer. The user will provide an email they have written and the context/purpose of the email.
 
-Analyze the email and respond with a JSON array. Each element must have these fields:
-- "title": section name
-- "icon": a single emoji representing the section
-- "content": your analysis (2-4 concise sentences)
+/* =====================================================
+   RESPONSE PARSING
+===================================================== */
 
-Return exactly these 5 sections in order:
-1. Grammar & Spelling — identify any grammar, spelling, or punctuation errors.
-2. Tone & Formality — evaluate whether the tone is appropriate for the given context.
-3. Clarity & Structure — assess how clear and well-organized the email is.
-4. Suggestions — provide specific, actionable improvements.
-5. Overall Verdict — a brief overall assessment.
+function cleanModelOutput(raw) {
+    let text = raw.trim();
 
-IMPORTANT: Return ONLY the JSON array. No markdown, no code fences, no extra text.`;
+    if (text.startsWith("```")) {
+        text = text
+            .replace(/^```(?:json)?\s*/, "")
+            .replace(/\s*```$/, "");
+    }
 
-form.addEventListener('submit', async (e) => {
+    return text;
+}
+
+function tryParseSections(raw) {
+    try {
+        const cleaned = cleanModelOutput(raw);
+        const parsed = JSON.parse(cleaned);
+
+        if (Array.isArray(parsed) && parsed.length && parsed[0].title) {
+            return parsed;
+        }
+
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+
+/* =====================================================
+   API CALL
+===================================================== */
+
+async function analyzeEmail(email, context) {
+
+    const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email,
+            context,
+            systemPrompt: SYSTEM_PROMPT
+        })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || "Analysis failed");
+    }
+
+    return data.response;
+}
+
+
+/* =====================================================
+   FORM SUBMIT HANDLER
+===================================================== */
+
+form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const email = emailInput.value.trim();
     const context = contextInput.value.trim();
 
     if (!email || !context) {
-        showError('Please provide both an email and context.');
+        showError("Please provide both an email and context.");
         return;
     }
 
-    analyzeBtn.disabled = true;
-    analyzeBtn.textContent = 'Analyzing...';
-    showLoading();
+    setLoading(true);
+    showLoadingIndicator();
 
     try {
-        const response = await fetch('http://localhost:3000/analyze-email', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email,
-                context,
-                systemPrompt: SYSTEM_PROMPT
-            })
-        });
 
-        const data = await response.json();
+        const raw = await analyzeEmail(email, context);
+        const sections = tryParseSections(raw);
 
-        if (!response.ok) {
-            showError(data.error || 'Analysis failed. Please try again.');
-            return;
-        }
-
-        const raw = data.response;
-
-        // Strip markdown code fences if present
-        let jsonStr = raw.trim();
-        if (jsonStr.startsWith('```')) {
-            jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
-        }
-
-        try {
-            const sections = JSON.parse(jsonStr);
-            if (Array.isArray(sections) && sections.length > 0 && sections[0].title) {
-                renderSections(sections);
-            } else {
-                renderRawText(raw);
-            }
-        } catch {
+        if (sections) {
+            renderSections(sections);
+        } else {
             renderRawText(raw);
         }
-    } catch (error) {
-        showError('Could not connect to the server. Make sure the BetterEmail server is running.');
-    } finally {
-        analyzeBtn.disabled = false;
-        analyzeBtn.textContent = 'Analyze';
+
+    } catch (err) {
+        showError(
+            err.message ||
+            "Could not connect to server. Make sure BetterEmail backend is running."
+        );
     }
+
+    setLoading(false);
 });
