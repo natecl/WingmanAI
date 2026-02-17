@@ -13,13 +13,13 @@ app.use(express.static('public'));
 // Email Analyzer endpoint
 app.post('/analyze-email', async (req, res) => {
     try {
-        const { email, context } = req.body;
+        const { email, context, systemPrompt: clientPrompt } = req.body;
 
         if (!email || !context) {
             return res.status(400).json({ error: 'Both email and context are required' });
         }
 
-        const systemPrompt = `You are an expert email analyzer. The user will provide an email they have written and the context/purpose of the email. Analyze the email and provide actionable feedback on:
+        const defaultPrompt = `You are an expert email analyzer. The user will provide an email they have written and the context/purpose of the email. Analyze the email and provide actionable feedback on:
 
 1. **Grammar & Spelling**: Identify any grammar, spelling, or punctuation errors.
 2. **Tone & Formality**: Evaluate whether the tone is appropriate for the given context.
@@ -27,6 +27,8 @@ app.post('/analyze-email', async (req, res) => {
 4. **Suggestions**: Provide specific, actionable suggestions for improvement.
 
 Be concise but thorough. Format your response with clear sections.`;
+
+        const systemPrompt = clientPrompt || defaultPrompt;
 
         const userMessage = `Context/Purpose: ${context}\n\nEmail to analyze:\n${email}`;
 

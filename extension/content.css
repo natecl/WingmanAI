@@ -1,0 +1,209 @@
+/* Futuristic Floating Widget Styles */
+:root {
+    --be-primary: #8e7dff;
+    --be-primary-glow: rgba(142, 125, 255, 0.4);
+    --be-bg: rgba(10, 11, 16, 0.95);
+    --be-border: rgba(255, 255, 255, 0.1);
+    --be-text: #ffffff;
+    --be-text-dim: #a0a0b0;
+}
+
+#be-analyzer-widget {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 999999;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+/* Floating Button (Collapsed) */
+#be-toggle-btn {
+    width: 60px;
+    height: 60px;
+    background: var(--be-primary);
+    border-radius: 50%;
+    border: none;
+    box-shadow: 0 0 20px var(--be-primary-glow), 0 4px 15px rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 2;
+}
+
+#be-toggle-btn:hover {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 0 30px var(--be-primary-glow);
+}
+
+#be-toggle-btn svg {
+    width: 30px;
+    height: 30px;
+    fill: white;
+    transition: transform 0.4s ease;
+}
+
+.be-expanded #be-toggle-btn {
+    transform: rotate(135deg);
+    background: #333;
+}
+
+/* Analyzer Panel (Expanded) */
+#be-panel {
+    width: 400px;
+    max-height: 600px;
+    background: var(--be-bg);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--be-border);
+    border-radius: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideUp 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.be-expanded #be-panel {
+    display: flex;
+}
+
+#be-header {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--be-border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.be-logo-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--be-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--be-primary);
+}
+
+#be-header h3 {
+    margin: 0;
+    color: var(--be-text);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+#be-content {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+#be-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#be-form textarea, #be-form input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--be-border);
+    border-radius: 12px;
+    color: var(--be-text);
+    padding: 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+#be-form textarea:focus, #be-form input:focus {
+    border-color: var(--be-primary);
+}
+
+#be-form textarea {
+    min-height: 150px;
+    resize: none;
+}
+
+#be-analyze-btn {
+    background: var(--be-primary);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#be-analyze-btn:hover {
+    filter: brightness(1.1);
+}
+
+#be-results {
+    margin-top: 20px;
+    display: none;
+}
+
+#be-results.visible {
+    display: block;
+}
+
+.be-section-card {
+    background: rgba(142, 125, 255, 0.05);
+    border: 1px solid rgba(142, 125, 255, 0.1);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 12px;
+}
+
+.be-section-title {
+    color: var(--be-primary);
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.be-section-content {
+    color: var(--be-text-dim);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Loading Animation */
+.be-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    gap: 8px;
+    color: var(--be-text-dim);
+}
+
+.be-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--be-primary);
+    border-radius: 50%;
+    animation: be-bounce 1.4s infinite ease-in-out both;
+}
+
+.be-dot:nth-child(2) { animation-delay: 0.2s; }
+.be-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes be-bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}

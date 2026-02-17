@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <header>
+        <div class="header-title">
+            <div class="logo-dot"></div>
+            <h1>BetterEmail</h1>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="form-card">
+            <h2>Paste your email for AI-powered feedback.</h2>
+            <form id="analyze-form">
+                <label for="email-input">Email Body</label>
+                <textarea id="email-input" placeholder="Paste your email here..."></textarea>
+
+                <label for="context-input">Context / Purpose</label>
+                <input type="text" id="context-input" class="context-input" placeholder='e.g. "Job application to a tech company"'>
+
+                <button type="submit" id="analyze-btn">Analyze</button>
+            </form>
+        </div>
+
+        <div class="results-container" id="results-container"></div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
