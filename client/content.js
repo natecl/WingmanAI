@@ -709,23 +709,38 @@ function renderPanelReminders(reminders) {
 
 function initScraperUI() {
     if (document.getElementById('be-scraper-trigger')) return true;
-    if (!document.body) return false;
 
-    // Create floating scraper trigger button
+    // Find the Gmail search form to position the trigger next to it
+    const searchForm = document.querySelector('form[role="search"]');
+    if (!searchForm) return false;
+
+    // Create trigger button (appended to body, positioned via CSS fixed)
     const trigger = document.createElement('button');
     trigger.id = 'be-scraper-trigger';
     trigger.className = 'be-scraper-trigger';
     trigger.title = 'BetterEmail Lead Finder';
     trigger.innerHTML = `
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/>
             <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <span>Find Leads</span>
     `;
     document.body.appendChild(trigger);
 
-    // Create the search panel
+    // Position the trigger to the right of the search bar
+    function positionTrigger() {
+        const rect = searchForm.getBoundingClientRect();
+        trigger.style.top = (rect.top + (rect.height / 2) - 20) + 'px';
+        trigger.style.left = (rect.right + 12) + 'px';
+    }
+
+    positionTrigger();
+    // Reposition on resize/scroll since Gmail header can shift
+    window.addEventListener('resize', positionTrigger);
+    // Periodic reposition to handle Gmail DOM changes
+    setInterval(positionTrigger, 2000);
+
+    // Create the search panel (appended to body for absolute positioning)
     const panel = document.createElement('div');
     panel.id = 'be-scraper-panel';
     panel.className = 'be-scraper-panel';
@@ -762,9 +777,13 @@ function initScraperUI() {
         scraperInput.addEventListener(evt, e => e.stopPropagation());
     });
 
-    // Toggle panel
+    // Toggle panel and position it below the trigger
     trigger.addEventListener('click', e => {
         e.stopPropagation();
+        // Position panel below the trigger button
+        const rect = trigger.getBoundingClientRect();
+        panel.style.top = (rect.bottom + 4) + 'px';
+        panel.style.right = (window.innerWidth - rect.right) + 'px';
         panel.classList.toggle('be-scraper-panel-open');
     });
 
@@ -873,11 +892,14 @@ async function handleScraperSubmit() {
     }
 }
 
-// Initialize scraper UI alongside existing init
+// Initialize scraper UI — keep observing since Gmail may re-render the header on navigation
+const scraperObserver = new MutationObserver(() => {
+    initScraperUI();
+});
 if (!initScraperUI()) {
-    const scraperObserver = new MutationObserver(() => {
-        if (initScraperUI()) scraperObserver.disconnect();
-    });
+    scraperObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+} else {
+    // Still observe for re-injection after Gmail navigation
     scraperObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
 }
 

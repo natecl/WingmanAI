@@ -879,39 +879,44 @@
 
 .be-scraper-trigger {
     position: fixed;
-    top: 72px;
-    right: 140px;
     z-index: 9999;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    border: 1px solid #dadce0;
-    border-radius: 20px;
-    background: #fff;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #1a1a2e 0%, #4a1a6b 100%);
     cursor: pointer;
-    font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    color: #5f6368;
-    white-space: nowrap;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    color: #c084fc;
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(128, 0, 255, 0.25);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.25s ease,
+                background 0.25s ease;
 }
 
 .be-scraper-trigger:hover {
-    background: #f8f9fa;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    color: #202124;
+    transform: scale(1.2) translateY(-2px);
+    background: linear-gradient(135deg, #2d1b4e 0%, #7c3aed 100%);
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.5),
+                0 0 30px rgba(168, 85, 247, 0.35),
+                0 0 60px rgba(139, 92, 246, 0.15);
+}
+
+.be-scraper-trigger:active {
+    transform: scale(1.1) translateY(0);
 }
 
 .be-scraper-trigger svg {
-    stroke: #5f6368;
-    transition: stroke 0.15s ease;
+    stroke: #c084fc;
+    transition: stroke 0.25s ease, filter 0.25s ease;
 }
 
 .be-scraper-trigger:hover svg {
-    stroke: #1a73e8;
+    stroke: #e9d5ff;
+    filter: drop-shadow(0 0 6px rgba(196, 132, 252, 0.8));
 }
 
 
@@ -921,8 +926,6 @@
 
 .be-scraper-panel {
     position: fixed;
-    top: 110px;
-    right: 20px;
     z-index: 10001;
     width: 420px;
     max-height: 70vh;
@@ -1126,23 +1129,24 @@
 
 @media (prefers-color-scheme: dark) {
     .be-scraper-trigger {
-        background: #2d2e30;
-        border-color: rgba(255, 255, 255, 0.1);
-        color: #e8eaed;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(135deg, #0d0d1a 0%, #3b1560 100%);
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
     }
 
     .be-scraper-trigger:hover {
-        background: #35363a;
-        color: #8ab4f8;
+        background: linear-gradient(135deg, #1a1035 0%, #7c3aed 100%);
+        box-shadow: 0 4px 20px rgba(139, 92, 246, 0.6),
+                    0 0 30px rgba(168, 85, 247, 0.4),
+                    0 0 60px rgba(139, 92, 246, 0.2);
     }
 
     .be-scraper-trigger svg {
-        stroke: #e8eaed;
+        stroke: #d8b4fe;
     }
 
     .be-scraper-trigger:hover svg {
-        stroke: #8ab4f8;
+        stroke: #f3e8ff;
+        filter: drop-shadow(0 0 6px rgba(216, 180, 254, 0.8));
     }
 
     .be-scraper-panel {

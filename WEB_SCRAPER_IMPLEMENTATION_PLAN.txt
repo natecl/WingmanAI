@@ -98,12 +98,14 @@ Inject a "Magnifying Glass" icon next to the Gmail search bar.
     -   Find the Gmail search bar container.
     -   Inject icon button.
 - **UI Interaction**:
-    -   Toggle **Search Panel**.
-    -   **Search Panel** UI:
-        -   Input: `Goal`.
-        -   Button: `Find Leads`.
-        -   Status Interface: "Checking Cache..." -> "Searching Web..." -> "Scraping...".
-        -   Results Grid: Display Name, Email, Role.
+    -   Clicking the icon toggles a **Search Panel**.
+    -   **Search Panel** Layout:
+        -   **Title**: "Email Search" (at the top).
+        -   **Label**: "Goal:" (under the title).
+        -   **Input**: Textarea for goal (e.g., "Find UF professors...").
+        -   **Button**: "Find Leads".
+        -   **Status Area**: "Checking Cache..." -> "Searching Web..." -> "Scraping...".
+        -   **Results Table**: A table with columns **Name**, **Email**, **Detail**.
 - **Network**: `fetch('http://localhost:3000/scrape-emails', ...)`
 
 #### [MODIFY] [extension/content.css](file:///Users/n.chinlue/BetterEmailV2/extension/content.css)

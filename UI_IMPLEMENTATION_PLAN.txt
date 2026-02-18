@@ -1,0 +1,105 @@
+# Implementation Plan: Move Scraper Icon to Gmail Header
+
+## Goal
+Move the Web Scraper "Magnifying Glass" icon from the floating position (body injection) to the **Gmail Header**, specifically to the right of the Search Bar (as indicated by the user's "purple square").
+
+## Technical Strategy
+Gmail's DOM is dynamic and obfuscated. We will use robust selectors (`role="search"`) to locate the search bar and inject our icon into its parent container.
+
+### 1. Target Location
+- **Anchor**: The Gmail Search Form (`form[role="search"]`).
+- **Insertion Point**: The parent container of the search form.
+- **Position**: Immediately **after** the search form (siblings).
+
+### 2. Changes Needed
+
+#### [MODIFY] `client/content.js`
+Update the `initScraperUI` function to find the header instead of appending to body.
+
+*   **Remove**: `document.body.appendChild(trigger)`
+*   **New Logic**:
+    1.  Find `const searchForm = document.querySelector('form[role="search"]');`
+    2.  Find its parent: `const headerContainer = searchForm.parentElement;`
+    3.  Insert the trigger: `headerContainer.insertBefore(trigger, searchForm.nextSibling);`
+    4.  **Observation**: Use `MutationObserver` to re-inject if Gmail wipes the header (common navigation behavior).
+
+#### [MODIFY] `client/content.css`
+Update styles to match Gmail's header icons.
+
+*   **`.be-scraper-trigger`**:
+    *   Remove fixed positioning (`position: fixed`, `bottom`, `right`).
+    *   Set `position: relative`.
+    *   Match Gmail header icon size (usually ~40px-48px square).
+    *   Add transparent background.
+    *   Add hover effect: `background-color: rgba(60,64,67,0.08)` (Gmail standard grey).
+    *   Ensure z-index is correct.
+
+### 3. Step-by-Step Instructions for Claude Code
+
+1.  **Edit `client/content.js`**:
+    *   Locate `initScraperUI`.
+    *   Change the injection logic to:
+        ```javascript
+        function injectScraperIcon() {
+            const searchForm = document.querySelector('form[role="search"]');
+            if (!searchForm) return false;
+
+            const headerContainer = searchForm.parentElement;
+            if (!headerContainer) return false;
+
+            // Check if already injected
+            if (document.getElementById('be-scraper-trigger')) return true;
+
+            // Create button (keep existing creation logic)
+            const trigger = document.createElement('button');
+            trigger.id = 'be-scraper-trigger';
+            // ... (keep icon SVG)
+
+            // Insert after search form
+            headerContainer.insertBefore(trigger, searchForm.nextSibling);
+
+            // Create Panel (append to body is fine for panel, it's absolute)
+            // ... (keep panel logic)
+        }
+        ```
+    *   Update the `MutationObserver` in `init()` to call `injectScraperIcon()` on changes.
+
+2.  **Edit `client/content.css`**:
+    *   **Remove**:
+        ```css
+        .be-scraper-trigger {
+            position: fixed;
+            bottom: 24px; left: 24px; /* etc */
+            /* Remove shadow, big background colors */
+        }
+        ```
+    *   **Add**:
+        ```css
+        .be-scraper-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: #5f6368; /* Gmail icon grey */
+            margin-left: 8px; /* Space from search bar */
+            margin-right: 4px;
+        }
+        .be-scraper-trigger:hover {
+            background-color: rgba(60, 64, 67, 0.08); /* Hover grey */
+            color: #202124;
+        }
+        ```
+
+3.  **Verification**:
+    *   Reload extension.
+    *   Open Gmail.
+    *   Verify the icon appears **next to the search bar**.
+    *   Verify checking/unchecking "Search Options" doesn't remove it.
+
+## File Artifacts
+- `UI_IMPLEMENTATION_PLAN.txt` (this file)
