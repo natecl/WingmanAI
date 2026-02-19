@@ -100,8 +100,16 @@ app.post('/scrape-emails', async (req, res) => {
             process.env.SUPABASE_SERVICE_ROLE_KEY
         );
 
+        const apiKey = process.env.OpenAI_Search_4oMini_Api_Key;
+        const isOpenRouter = apiKey && apiKey.startsWith('sk-or-v1');
+
         const openai = new OpenAI({
-            apiKey: process.env.OpenAI_Search_4oMini_Api_Key
+            apiKey: apiKey,
+            baseURL: isOpenRouter ? "https://openrouter.ai/api/v1" : undefined,
+            defaultHeaders: isOpenRouter ? {
+                "HTTP-Referer": "http://localhost:3000", // Required by OpenRouter
+                "X-Title": "BetterEmail V2" // Optional
+            } : undefined
         });
 
         const firecrawl = new FirecrawlApp({
