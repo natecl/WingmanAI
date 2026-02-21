@@ -40,19 +40,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
-    .split(',')
-    .map(o => o.trim());
-app.use(cors({
-    origin: (origin, callback) => {
-        // Allow requests with no origin (e.g. Chrome extensions, server-to-server)
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    }
-}));
+app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -204,10 +192,12 @@ app.post('/scrape-emails', requireAuth, async (req, res) => {
 
 // Gmail Sync endpoint
 app.post('/gmail/sync', requireAuth, async (req, res) => {
+    console.log(`[Sync Debug] Received sync request from userId: ${req.userId}. Body keys:`, Object.keys(req.body));
     try {
         const { provider_token, provider_refresh_token } = req.body;
 
         if (!provider_token) {
+            console.error('[Sync Error] provider_token is missing from request body.');
             return res.status(400).json({ error: 'provider_token is required' });
         }
 
@@ -216,80 +206,92 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
             process.env.SUPABASE_SERVICE_ROLE_KEY
         );
 
-        // Store Gmail tokens for future use
-        if (provider_refresh_token) {
-            await storeGmailTokens(supabase, req.userId, req.userEmail, {
-                access_token: provider_token,
-                refresh_token: provider_refresh_token
-            });
-        }
+        // Always ensure user row exists (prevents foreign key violations on gmail_messages)
+        await storeGmailTokens(supabase, req.userId, req.userEmail, {
+            access_token: provider_token,
+            refresh_token: provider_refresh_token || null
+        });
 
         // Get user's current history_id for incremental sync
         const userData = await getGmailTokens(supabase, req.userId);
         const historyId = userData?.history_id || null;
+        console.log(`[Sync Debug] Stored history_id for user: ${historyId}`);
 
         // Fetch message IDs from Gmail
         const { messageIds } = await fetchMessageIds(provider_token, historyId);
+        console.log(`[Sync Debug] fetchMessageIds returned ${messageIds.length} IDs.`);
 
-        let processed = 0;
-        let queued = 0;
-        let newHistoryId = null;
+        // Send immediate response to prevent Chrome MV3 service worker timeout (30s limit)
+        res.json({ processed: 0, queued: messageIds.length, status: 'Background sync started' });
 
-        for (const msgId of messageIds) {
-            try {
-                const gmailMsg = await fetchMessage(provider_token, msgId);
-                const headers = gmailMsg.payload?.headers || [];
+        // Process all the heavy message downloading and parsing entirely in the background
+        setTimeout(async () => {
+            let processed = 0;
+            let queued = 0;
+            let newHistoryId = null;
 
-                const subject = getHeader(headers, 'Subject') || '(no subject)';
-                const fromHeader = getHeader(headers, 'From') || '';
-                const toHeader = getHeader(headers, 'To') || '';
-                const { name: fromName, email: fromEmail } = parseFrom(fromHeader);
+            console.log(`[Sync Debug] Starting background processing for ${messageIds.length} messages...`);
 
-                const toEmails = toHeader
-                    .split(',')
-                    .map(t => t.trim())
-                    .filter(Boolean);
+            for (const msgId of messageIds) {
+                try {
+                    const gmailMsg = await fetchMessage(provider_token, msgId);
+                    const headers = gmailMsg.payload?.headers || [];
 
-                const rawBody = extractBodyText(gmailMsg.payload);
-                const bodyText = cleanBodyText(rawBody);
-                const bodyHash = computeBodyHash(bodyText);
+                    const subject = getHeader(headers, 'Subject') || '(no subject)';
+                    const fromHeader = getHeader(headers, 'From') || '';
+                    const toHeader = getHeader(headers, 'To') || '';
+                    const { name: fromName, email: fromEmail } = parseFrom(fromHeader);
 
-                // Track the latest historyId
-                if (gmailMsg.historyId) {
-                    if (!newHistoryId || BigInt(gmailMsg.historyId) > BigInt(newHistoryId)) {
-                        newHistoryId = gmailMsg.historyId;
+                    const toEmails = toHeader
+                        .split(',')
+                        .map(t => t.trim())
+                        .filter(Boolean);
+
+                    const rawBody = extractBodyText(gmailMsg.payload);
+                    const bodyText = cleanBodyText(rawBody);
+                    // Generate hash to avoid duplicate processing
+                    const bodyHash = computeBodyHash(bodyText);
+
+                    // Track the latest historyId
+                    if (gmailMsg.historyId) {
+                        if (!newHistoryId || BigInt(gmailMsg.historyId) > BigInt(newHistoryId)) {
+                            newHistoryId = gmailMsg.historyId;
+                        }
                     }
+
+                    const result = await upsertMessage(supabase, req.userId, {
+                        gmailMessageId: msgId,
+                        threadId: gmailMsg.threadId,
+                        subject,
+                        fromName,
+                        fromEmail,
+                        toEmails,
+                        labels: gmailMsg.labelIds || [],
+                        internalDate: new Date(parseInt(gmailMsg.internalDate)).toISOString(),
+                        bodyText,
+                        bodyHash
+                    });
+
+                    processed++;
+                    if (result === 'new' || result === 'changed') queued++;
+                } catch (msgErr) {
+                    console.error(`Failed to process message ${msgId}:`, msgErr.message);
                 }
-
-                const result = await upsertMessage(supabase, req.userId, {
-                    gmailMessageId: msgId,
-                    threadId: gmailMsg.threadId,
-                    subject,
-                    fromName,
-                    fromEmail,
-                    toEmails,
-                    labels: gmailMsg.labelIds || [],
-                    internalDate: new Date(parseInt(gmailMsg.internalDate)).toISOString(),
-                    bodyText,
-                    bodyHash
-                });
-
-                processed++;
-                if (result === 'new' || result === 'changed') queued++;
-            } catch (msgErr) {
-                console.error(`Failed to process message ${msgId}:`, msgErr.message);
             }
-        }
 
-        // Update history_id for next incremental sync
-        if (newHistoryId) {
-            await supabase.from('users').update({
-                history_id: newHistoryId,
-                updated_at: new Date().toISOString()
-            }).eq('id', req.userId);
-        }
-
-        res.json({ processed, queued, newHistoryId });
+            // Update history_id for next incremental sync
+            if (newHistoryId) {
+                try {
+                    await supabase.from('users').update({
+                        history_id: newHistoryId,
+                        updated_at: new Date().toISOString()
+                    }).eq('id', req.userId);
+                } catch (err) {
+                    console.error(`Failed to update history_id for user ${req.userId}`, err);
+                }
+            }
+            console.log(`[Sync Debug] Background processing complete. Processed: ${processed}, Queued for vector embedding: ${queued}`);
+        }, 0);
     } catch (error) {
         console.error('Gmail sync error:', error);
         res.status(500).json({ error: 'Failed to sync emails' });
@@ -327,12 +329,16 @@ app.post('/search', requireAuth, async (req, res) => {
 
         // Embed the query
         const queryVector = await embedQuery(openai, query.trim());
+        console.log(`[Search Debug] Embedded query, dimensions: ${queryVector ? queryVector.length : 'null'}`);
 
         // Run vector search
+        console.log(`[Search Debug] Running vectorSearch for userId: ${req.userId} with filters:`, filters);
         const rawResults = await vectorSearch(supabase, req.userId, queryVector, filters || {});
+        console.log(`[Search Debug] rawResults length from Supabase: ${rawResults ? rawResults.length : 'null'}`);
 
         // Group, rank, and return
         const results = groupAndRankResults(rawResults);
+        console.log(`[Search Debug] Final grouped results count: ${results.length}`);
 
         res.json({ results });
     } catch (error) {

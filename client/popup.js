@@ -144,10 +144,10 @@ function formatDueTime(dueTime) {
     const diff = dueTime - Date.now();
     if (diff <= 0) return { label: "Overdue", overdue: true };
     const mins = Math.floor(diff / 60000);
-    const hrs  = Math.floor(diff / 3600000);
+    const hrs = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
     if (days >= 1) return { label: `In ${days} day${days > 1 ? "s" : ""}`, overdue: false };
-    if (hrs  >= 1) return { label: `In ${hrs} hr${hrs > 1 ? "s" : ""}`,    overdue: false };
+    if (hrs >= 1) return { label: `In ${hrs} hr${hrs > 1 ? "s" : ""}`, overdue: false };
     return { label: `In ${mins} min${mins !== 1 ? "s" : ""}`, overdue: false };
 }
 
@@ -172,7 +172,7 @@ function showEmptyState(list, badge) {
 }
 
 function renderReminders(reminders) {
-    const list  = document.getElementById("reminders-list");
+    const list = document.getElementById("reminders-list");
     const badge = document.getElementById("reminders-badge");
 
     if (!reminders || reminders.length === 0) {
@@ -270,9 +270,9 @@ async function initAuthUI() {
             userEmail.textContent = session.user.email || "";
         }
     } else {
-        // Signed out
+        // Signed out — hide everything except auth card
         if (authCard) authCard.style.display = "flex";
-        if (mainContent) mainContent.style.display = "flex";
+        if (mainContent) mainContent.style.display = "none";
         if (userBar) userBar.style.display = "none";
     }
 }
@@ -290,6 +290,7 @@ document.getElementById("be-signin-btn")?.addEventListener("click", async () => 
         console.error("Sign-in failed:", err);
         btn.textContent = "Sign in with Google";
         btn.disabled = false;
+        alert("Sign-in error: " + err.message);
     }
 });
 

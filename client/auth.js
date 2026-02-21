@@ -100,64 +100,23 @@ async function refreshAccessToken(refreshToken) {
  * Returns the session object or throws.
  */
 async function signInWithGoogle() {
-    const redirectUrl = chrome.identity.getRedirectURL();
-
-    // Build Supabase OAuth URL
-    const authUrl = new URL(`${BE_CONFIG.SUPABASE_URL}/auth/v1/authorize`);
-    authUrl.searchParams.set('provider', 'google');
-    authUrl.searchParams.set('redirect_to', redirectUrl);
-    authUrl.searchParams.set('scopes', 'email profile https://www.googleapis.com/auth/gmail.readonly');
-
-    // Launch Chrome identity flow
-    const responseUrl = await new Promise((resolve, reject) => {
-        chrome.identity.launchWebAuthFlow(
-            { url: authUrl.toString(), interactive: true },
-            (callbackUrl) => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                } else {
-                    resolve(callbackUrl);
-                }
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ type: "SIGN_IN" }, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
             }
-        );
+            if (!response) {
+                reject(new Error("No response from background script"));
+                return;
+            }
+            if (response.error) {
+                reject(new Error(response.error));
+                return;
+            }
+            resolve(response.session);
+        });
     });
-
-    // Parse the callback URL for tokens
-    const url = new URL(responseUrl);
-
-    // Supabase returns tokens in the hash fragment
-    const hashParams = new URLSearchParams(url.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
-    const expiresIn = parseInt(hashParams.get('expires_in') || '3600', 10);
-    const providerToken = hashParams.get('provider_token');
-    const providerRefreshToken = hashParams.get('provider_refresh_token');
-
-    if (!accessToken) {
-        throw new Error('No access token received from Supabase');
-    }
-
-    // Fetch user info from Supabase
-    const userResponse = await fetch(`${BE_CONFIG.SUPABASE_URL}/auth/v1/user`, {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': BE_CONFIG.SUPABASE_ANON_KEY
-        }
-    });
-
-    const user = userResponse.ok ? await userResponse.json() : null;
-
-    const session = {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        expires_at: Math.floor(Date.now() / 1000) + expiresIn,
-        user,
-        provider_token: providerToken,
-        provider_refresh_token: providerRefreshToken
-    };
-
-    await saveSession(session);
-    return session;
 }
 
 /**

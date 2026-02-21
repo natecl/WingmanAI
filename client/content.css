@@ -1613,3 +1613,308 @@
         color: #9aa0a6;
     }
 }
+
+
+/* =========================================================
+   LOCKED UI STATE
+========================================================= */
+
+.be-locked-ui {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px 16px;
+    color: #9aa0a6;
+    font-size: 13px;
+    line-height: 1.5;
+    font-style: italic;
+}
+
+
+/* =========================================================
+   GMAIL SEARCH BAR REPLACEMENT (Semantic Search)
+========================================================= */
+
+.be-gmail-search-overlay {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 1000;
+    font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    box-sizing: border-box;
+    background: inherit;
+}
+
+.be-gmail-search-overlay .be-search-wrapper {
+    flex: 1;
+    position: relative;
+    padding: 2px;
+    border-radius: 24px;
+    overflow: hidden;
+    margin-bottom: 0;
+}
+
+.be-gmail-search-overlay .be-search-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background: conic-gradient(from 0deg,
+            #1a73e8,
+            #c084fc,
+            #a29bfe,
+            #1a73e8,
+            #c084fc);
+    animation: be-glow-spin 3s linear infinite;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+.be-gmail-search-overlay .be-search-wrapper:focus-within::before {
+    opacity: 1;
+}
+
+.be-gmail-search-overlay .be-search-wrapper.is-searching::before {
+    animation: be-glow-spin 0.8s linear infinite;
+    opacity: 1;
+}
+
+.be-gmail-search-input {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 22px;
+    font-size: 14px;
+    color: #202124;
+    background: #f1f3f4;
+    outline: none;
+    box-sizing: border-box;
+    transition: background 0.2s ease;
+}
+
+.be-gmail-search-input:focus {
+    background: #fff;
+}
+
+.be-gmail-search-input::placeholder {
+    color: #9aa0a6;
+}
+
+.be-gmail-search-input:disabled {
+    background: #e8eaed;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Action buttons beside the search bar */
+.be-gmail-search-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.be-gmail-search-submit,
+.be-gmail-search-sync,
+.be-gmail-search-filter-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #5f6368;
+    transition: background 0.15s ease, color 0.15s ease;
+    padding: 0;
+}
+
+.be-gmail-search-submit:hover,
+.be-gmail-search-sync:hover,
+.be-gmail-search-filter-toggle:hover {
+    background: #e8eaed;
+    color: #202124;
+}
+
+.be-gmail-search-submit {
+    background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+    color: white;
+    box-shadow: 0 1px 4px rgba(26, 115, 232, 0.3);
+}
+
+.be-gmail-search-submit:hover {
+    background: linear-gradient(135deg, #1558b0 0%, #3b78e7 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.4);
+}
+
+.be-gmail-search-submit:disabled,
+.be-gmail-search-sync:disabled,
+.be-gmail-search-filter-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.be-gmail-search-submit:disabled:hover,
+.be-gmail-search-sync:disabled:hover,
+.be-gmail-search-filter-toggle:disabled:hover {
+    background: transparent;
+    color: #5f6368;
+}
+
+.be-gmail-search-submit:disabled {
+    background: #dadce0;
+    color: #9aa0a6;
+    box-shadow: none;
+}
+
+.be-gmail-search-submit:disabled:hover {
+    background: #dadce0;
+    color: #9aa0a6;
+}
+
+/* Filters dropdown below the search bar */
+.be-gmail-search-filters {
+    position: fixed;
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    z-index: 1001;
+    width: 600px;
+}
+
+.be-gmail-filter-input {
+    flex: 1;
+    min-width: 80px;
+    padding: 8px 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #202124;
+    background: #f8f9fa;
+    outline: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.be-gmail-filter-input:focus {
+    background: white;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+}
+
+.be-gmail-filter-input::placeholder {
+    color: #9aa0a6;
+}
+
+/* Search results dropdown */
+.be-gmail-search-results {
+    position: fixed;
+    max-height: 400px;
+    width: 600px;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    z-index: 1001;
+    padding: 8px;
+}
+
+/* Locked search state */
+.be-search-locked .be-search-wrapper::before {
+    opacity: 0.2;
+    animation: none;
+}
+
+/* Analyzer locked styles */
+.be-analyze-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #dadce0;
+    box-shadow: none;
+}
+
+.be-analyze-btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.be-context-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #e8eaed;
+}
+
+
+/* =========================================================
+   GMAIL SEARCH BAR REPLACEMENT - Dark Mode
+========================================================= */
+
+@media (prefers-color-scheme: dark) {
+    .be-locked-ui {
+        color: #9aa0a6;
+    }
+
+    .be-gmail-search-input {
+        background: #35363a;
+        color: #e8eaed;
+    }
+
+    .be-gmail-search-input:focus {
+        background: #3c4043;
+    }
+
+    .be-gmail-search-input:disabled {
+        background: #2d2e30;
+    }
+
+    .be-gmail-search-submit,
+    .be-gmail-search-sync,
+    .be-gmail-search-filter-toggle {
+        color: #bdc1c6;
+    }
+
+    .be-gmail-search-submit:hover,
+    .be-gmail-search-sync:hover,
+    .be-gmail-search-filter-toggle:hover {
+        background: #3c4043;
+        color: #e8eaed;
+    }
+
+    .be-gmail-search-filters {
+        background: #2d2e30;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .be-gmail-filter-input {
+        background: #35363a;
+        border-color: #5f6368;
+        color: #e8eaed;
+    }
+
+    .be-gmail-filter-input:focus {
+        background: #3c4043;
+        border-color: #8ab4f8;
+    }
+
+    .be-gmail-search-results {
+        background: #2d2e30;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .be-analyze-btn:disabled {
+        background: #3c4043;
+    }
+
+    .be-context-input:disabled {
+        background: #2d2e30;
+    }
+}

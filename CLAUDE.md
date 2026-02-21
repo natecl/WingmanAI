@@ -147,8 +147,8 @@ BetterEmailV2/
 - **Follow-up Reminders** — Toast notification after sending, with custom scheduling
 - **Reminders Panel** — Fixed header chip showing active reminders
 - **Web Scraper / Lead Finder** — AI-powered contact discovery with 3-layer caching (prompt_cache → email_leads → live pipeline)
-- **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes
-- **Semantic Search** — Natural language email search using OpenAI embeddings + Supabase pgvector, with Gmail sync, background indexing worker, and search UI in extension popup
+- **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. All features (Lead Finder, Semantic Search, Email Analyzer, Follow-up Reminders) are locked behind authentication in both popup and content scripts. Auth state changes are detected via `chrome.storage.onChanged` and UIs unlock/lock instantly without page refresh.
+- **Semantic Search** — Natural language email search using OpenAI embeddings + Supabase pgvector, with Gmail sync, background indexing worker. The search UI **replaces the native Gmail search bar** with a custom input wrapped in an animated glow ring effect, with filter and sync controls alongside it.
 
 ## Database Tables (Supabase)
 - `scraped_pages` — Cache of scraped page data (url PK)
