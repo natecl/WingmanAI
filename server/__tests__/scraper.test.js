@@ -174,7 +174,7 @@ describe('searchWithFirecrawl', () => {
     test('returns URLs from Firecrawl search results', async () => {
         const searchData = [
             { url: 'https://cis.fiu.edu/faculty-staff/' },
-            { url: 'https://cs.ufl.edu/people/' }
+            { url: 'https://cise.ufl.edu/people/faculty/' }
         ];
         const firecrawl = mockFirecrawl({}, searchData);
 

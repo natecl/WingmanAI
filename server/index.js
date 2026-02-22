@@ -55,6 +55,8 @@ app.use('/analyze-email', apiLimiter);
 app.use('/scrape-emails', apiLimiter);
 app.use('/gmail/sync', apiLimiter);
 app.use('/search', apiLimiter);
+app.use('/user/resume', apiLimiter);
+app.use('/draft-email', apiLimiter);
 
 // Email Analyzer endpoint
 app.post('/analyze-email', requireAuth, async (req, res) => {
@@ -330,6 +332,107 @@ app.post('/search', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Search error:', error);
         res.status(500).json({ error: 'Search failed' });
+    }
+});
+
+// Get user's saved resume
+app.get('/user/resume', requireAuth, async (req, res) => {
+    try {
+        const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        const { data, error } = await supabase
+            .from('users')
+            .select('resume_text')
+            .eq('id', req.userId)
+            .single();
+        if (error) return res.status(500).json({ error: 'Failed to fetch resume' });
+        res.json({ resume_text: data?.resume_text || '' });
+    } catch (error) {
+        console.error('Get resume error:', error);
+        res.status(500).json({ error: 'Failed to fetch resume' });
+    }
+});
+
+// Save user's resume
+app.put('/user/resume', requireAuth, async (req, res) => {
+    try {
+        const { resume_text } = req.body;
+        if (typeof resume_text !== 'string') {
+            return res.status(400).json({ error: 'resume_text must be a string' });
+        }
+        if (resume_text.length > 20000) {
+            return res.status(400).json({ error: 'Resume must be 20,000 characters or less' });
+        }
+        const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        const { error } = await supabase
+            .from('users')
+            .update({ resume_text, updated_at: new Date().toISOString() })
+            .eq('id', req.userId);
+        if (error) return res.status(500).json({ error: 'Failed to save resume' });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Save resume error:', error);
+        res.status(500).json({ error: 'Failed to save resume' });
+    }
+});
+
+// Draft an email using the user's saved resume + a job description
+app.post('/draft-email', requireAuth, async (req, res) => {
+    try {
+        const { jobDescription } = req.body;
+        if (!jobDescription || typeof jobDescription !== 'string' || !jobDescription.trim()) {
+            return res.status(400).json({ error: 'jobDescription is required' });
+        }
+        if (jobDescription.length > 2000) {
+            return res.status(400).json({ error: 'Job description must be 2,000 characters or less' });
+        }
+
+        const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        const { data, error } = await supabase
+            .from('users')
+            .select('resume_text')
+            .eq('id', req.userId)
+            .single();
+
+        if (error || !data?.resume_text) {
+            return res.status(400).json({ error: 'No resume saved. Add your resume in the Settings tab first.' });
+        }
+
+        const systemPrompt = `You are an expert at writing professional outreach emails. Given a person's resume and a job description or context, write a concise, personalized email body. Output ONLY the email body (no subject line, no greeting like "Dear X", no signature). Under 200 words. Reference specific relevant experience from the resume.`;
+
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.CLAUDE_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'anthropic/claude-sonnet-4-5',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: `Resume:\n${data.resume_text}\n\nJob/Context:\n${jobDescription}` }
+                ]
+            })
+        });
+
+        const aiData = await response.json();
+        if (!response.ok) {
+            console.error('Draft API error:', aiData);
+            return res.status(response.status).json({ error: aiData.error?.message || 'Draft failed' });
+        }
+
+        res.json({ draft: aiData.choices[0].message.content });
+    } catch (error) {
+        console.error('Draft email error:', error);
+        res.status(500).json({ error: 'Failed to draft email' });
     }
 });
 
