@@ -1976,74 +1976,6 @@
     pointer-events: auto;
 }
 
-.be-gmail-search-filter-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    color: #5f6368;
-    transition: background 0.15s ease, color 0.15s ease;
-    padding: 0;
-}
-
-.be-gmail-search-filter-toggle:hover {
-    background: #e8eaed;
-    color: #202124;
-}
-
-.be-gmail-search-filter-toggle:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.be-gmail-search-filter-toggle:disabled:hover {
-    background: transparent;
-    color: #5f6368;
-}
-
-/* Filters dropdown below the search bar */
-.be-gmail-search-filters {
-    position: fixed;
-    display: flex;
-    gap: 6px;
-    padding: 10px 12px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    z-index: 1001;
-    width: 600px;
-    pointer-events: auto;
-}
-
-.be-gmail-filter-input {
-    flex: 1;
-    min-width: 80px;
-    padding: 8px 10px;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 12px;
-    color: #202124;
-    background: #f8f9fa;
-    outline: none;
-    transition: all 0.2s ease;
-    box-sizing: border-box;
-}
-
-.be-gmail-filter-input:focus {
-    background: white;
-    border-color: #1a73e8;
-    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
-}
-
-.be-gmail-filter-input::placeholder {
-    color: #9aa0a6;
-}
-
 /* Search results dropdown */
 .be-gmail-search-results {
     position: fixed;
@@ -2126,31 +2058,6 @@
     .be-gmail-search-input:disabled {
         background: transparent !important;
         opacity: 0.5;
-    }
-
-    .be-gmail-search-filter-toggle {
-        color: #bdc1c6;
-    }
-
-    .be-gmail-search-filter-toggle:hover {
-        background: #3c4043;
-        color: #e8eaed;
-    }
-
-    .be-gmail-search-filters {
-        background: #2d2e30;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-    }
-
-    .be-gmail-filter-input {
-        background: #35363a;
-        border-color: #5f6368;
-        color: #e8eaed;
-    }
-
-    .be-gmail-filter-input:focus {
-        background: #3c4043;
-        border-color: #8ab4f8;
     }
 
     .be-gmail-search-results {

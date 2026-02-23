@@ -1348,22 +1348,13 @@ async function handleSemanticSearch() {
             return;
         }
 
-        const filters = {};
-        const fromVal = document.getElementById('be-semantic-filter-from')?.value?.trim();
-        const afterVal = document.getElementById('be-semantic-filter-after')?.value;
-        const beforeVal = document.getElementById('be-semantic-filter-before')?.value;
-
-        if (fromVal) filters.from = fromVal;
-        if (afterVal) filters.after = new Date(afterVal).toISOString();
-        if (beforeVal) filters.before = new Date(beforeVal).toISOString();
-
         const response = await apiFetch(`${getApiBase()}/search`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ query, filters })
+            body: JSON.stringify({ query })
         });
 
         if (!response.ok) {
@@ -1506,9 +1497,6 @@ function toggleSemanticSearch(forceState) {
         overlay.classList.remove('be-overlay-active');
         toggleBtn.classList.remove('be-toggle-active');
         toggleBtn.title = 'Switch to Semantic Search (Shift)';
-        // Close any open filter/results dropdowns
-        const fields = document.getElementById('be-semantic-filter-fields');
-        if (fields) fields.style.display = 'none';
 
         const resultsContainer = document.getElementById('be-semantic-results');
         if (resultsContainer) {
@@ -1568,23 +1556,7 @@ function initSemanticSearchBar() {
     overlay.id = 'be-gmail-search-overlay';
     overlay.className = 'be-gmail-search-overlay';
     overlay.innerHTML = `
-        <div class="be-gmail-search-actions">
-            <button type="button" class="be-gmail-search-filter-toggle" id="be-semantic-filter-toggle">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="4" y1="21" x2="4" y2="14"/>
-                    <line x1="4" y1="10" x2="4" y2="3"/>
-                    <line x1="12" y1="21" x2="12" y2="12"/>
-                    <line x1="12" y1="8" x2="12" y2="3"/>
-                    <line x1="20" y1="21" x2="20" y2="16"/>
-                    <line x1="20" y1="12" x2="20" y2="3"/>
-                </svg>
-            </button>
-        </div>
-        <div class="be-gmail-search-filters" id="be-semantic-filter-fields" style="display:none;">
-            <input type="text" id="be-semantic-filter-from" class="be-gmail-filter-input" placeholder="From (email)">
-            <input type="date" id="be-semantic-filter-after" class="be-gmail-filter-input" placeholder="After">
-            <input type="date" id="be-semantic-filter-before" class="be-gmail-filter-input" placeholder="Before">
-        </div>
+        <div class="be-search-wrapper" id="be-search-wrapper"></div>
         <div id="be-semantic-sync-status" class="be-scraper-status"></div>
         <div id="be-semantic-results" class="be-semantic-results be-gmail-search-results" style="display:none;"></div>
     `;
@@ -1609,7 +1581,6 @@ function initSemanticSearchBar() {
     setInterval(positionOverlay, 2000);
 
     const semanticInput = overlay.querySelector('#be-semantic-input');
-    const filterToggle = overlay.querySelector('#be-semantic-filter-toggle');
 
     // Removed the semanticInput keydown listeners since the custom input is gone.
 
@@ -1655,29 +1626,6 @@ function initSemanticSearchBar() {
         }
     }, true);
 
-    // Filter inputs stop propagation
-    overlay.querySelectorAll('.be-gmail-filter-input').forEach(el => {
-        ['keydown', 'keyup', 'keypress', 'focus', 'click'].forEach(evt => {
-            el.addEventListener(evt, e => e.stopPropagation());
-        });
-    });
-
-    // Filter toggle
-    filterToggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const fields = overlay.querySelector('#be-semantic-filter-fields');
-        if (fields) {
-            const isHidden = fields.style.display === 'none';
-            fields.style.display = isHidden ? 'flex' : 'none';
-            if (isHidden) {
-                const rect = overlay.getBoundingClientRect();
-                fields.style.top = (rect.bottom + 4) + 'px';
-                fields.style.left = rect.left + 'px';
-                fields.style.width = rect.width + 'px';
-            }
-        }
-    });
-
     // Removed submitBtn and syncBtn listeners
 
     // Apply auth lock state
@@ -1689,14 +1637,12 @@ function initSemanticSearchBar() {
 }
 
 function applySemanticSearchAuthState(overlay, authed) {
-    const filterToggle = overlay.querySelector('#be-semantic-filter-toggle');
     const nativeInput = document.querySelector('form[role="search"] input');
 
     if (authed) {
         if (nativeInput && isSemanticSearchActive) {
             nativeInput.placeholder = 'Semantic Search: "Email from Nathan about club opportunity"';
         }
-        filterToggle.disabled = false;
         overlay.classList.remove('be-search-locked');
 
         // Auto-sync emails when authenticated
@@ -1705,7 +1651,6 @@ function applySemanticSearchAuthState(overlay, authed) {
         if (nativeInput && isSemanticSearchActive) {
             nativeInput.placeholder = 'Sign in via extension to unlock Semantic Search';
         }
-        filterToggle.disabled = true;
         overlay.classList.add('be-search-locked');
     }
 }
