@@ -8,20 +8,30 @@ console.log("[BetterEmail BG] Service worker loaded — v2.1");
    MESSAGE HANDLER — receives SET_REMINDER from content.js
 ========================================================= */
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === "SET_REMINDER") {
         // Store reminder metadata
         chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
             be_reminders.push({
                 id: msg.id,
                 subject: msg.subject,
-                dueTime: msg.dueTime
+                dueTime: msg.dueTime,
+                threadId: msg.threadId || null,
+                threadPath: msg.threadPath || null
             });
             chrome.storage.local.set({ be_reminders });
         });
 
         // Schedule the alarm
         chrome.alarms.create(msg.id, { when: msg.dueTime });
+        sendResponse({ success: true });
+    } else if (msg.type === "CLEAR_ALARM") {
+        // Proxy for content scripts which can't access chrome.alarms directly
+        chrome.alarms.clear(msg.id);
+        sendResponse({ success: true });
+    } else if (msg.type === "OPEN_TAB") {
+        // Proxy for content scripts which can't access chrome.tabs directly
+        chrome.tabs.create({ url: msg.url });
         sendResponse({ success: true });
     } else if (msg.type === "SIGN_IN") {
         signInWithGoogleBackground()
@@ -158,14 +168,37 @@ chrome.alarms.onAlarm.addListener((alarm) => {
    NOTIFICATION CLICK HANDLERS — open Gmail
 ========================================================= */
 
+const GMAIL_THREAD_ID_RE = /^[A-Za-z0-9_\-]{8,}$/;
+
+function reminderUrl(reminder) {
+    if (reminder?.threadPath) return `https://mail.google.com/mail/u/0/#${reminder.threadPath}`;
+    // Only use threadId if it's a URL-navigable ID — not internal "thread-f:..." format
+    if (reminder?.threadId && GMAIL_THREAD_ID_RE.test(reminder.threadId)) {
+        return `https://mail.google.com/mail/u/0/#inbox/${reminder.threadId}`;
+    }
+    // Fallback: search Sent folder by subject
+    if (reminder?.subject) {
+        const clean = reminder.subject.replace(/"/g, "'");
+        const encoded = `in:sent+subject:%22${clean.replace(/ /g, '+')}%22`;
+        return `https://mail.google.com/mail/u/0/#search/${encoded}`;
+    }
+    return "https://mail.google.com/mail/u/0/#sent";
+}
+
 chrome.notifications.onButtonClicked.addListener((notifId, btnIdx) => {
     if (btnIdx === 0) {
-        chrome.tabs.create({ url: "https://mail.google.com" });
+        chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
+            const reminder = be_reminders.find(r => r.id === notifId);
+            chrome.tabs.create({ url: reminderUrl(reminder) });
+        });
     }
     chrome.notifications.clear(notifId);
 });
 
 chrome.notifications.onClicked.addListener((notifId) => {
-    chrome.tabs.create({ url: "https://mail.google.com" });
+    chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
+        const reminder = be_reminders.find(r => r.id === notifId);
+        chrome.tabs.create({ url: reminderUrl(reminder) });
+    });
     chrome.notifications.clear(notifId);
 });

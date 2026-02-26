@@ -599,14 +599,23 @@ function trySendButton(composeBox) {
     sendBtn.dataset.beReminderAttached = "true";
     sendBtn.addEventListener("click", () => {
         const subject = document.querySelector('input[name="subjectbox"]')?.value?.trim() || "your email";
-        setTimeout(() => showReminderPrompt(subject), 600);
+        // For replies: capture thread from URL now (Gmail navigates away by toast time).
+        // For new compose emails: both null here — watchForSentThread will fill pendingThread
+        // by observing Gmail's "View message" notification link that appears after send.
+        const currentThreadId = getCurrentThreadId();
+        const currentThreadPath = getCurrentThreadPath();
+        console.log("[BetterEmail] Send clicked — hash:", window.location.hash, "→ threadId:", currentThreadId, "path:", currentThreadPath);
+        if (currentThreadId) autoDismissReminderForThread(currentThreadId);
+        const pendingThread = { id: currentThreadId, path: currentThreadPath };
+        if (!currentThreadPath) watchForSentThread(pendingThread);
+        setTimeout(() => showReminderPrompt(subject, pendingThread), 600);
     });
 
     console.log("[BetterEmail] Send button listener attached");
     return true;
 }
 
-async function showReminderPrompt(subject) {
+async function showReminderPrompt(subject, pendingThread = {}) {
     // Abort if not authenticated
     if (!(await isAuthenticated())) return;
 
@@ -645,25 +654,27 @@ async function showReminderPrompt(subject) {
     toast.dataset.autoDismiss = autoDismiss;
 
     toast.querySelector(".be-reminder-close").addEventListener("click", () => dismissToast(toast));
-    attachQuickOptionListeners(toast, subject);
+    // Pass pendingThread by reference — watchForSentThread may still be updating it
+    attachQuickOptionListeners(toast, subject, pendingThread);
 }
 
-function attachQuickOptionListeners(toast, subject) {
+function attachQuickOptionListeners(toast, subject, pendingThread = {}) {
     toast.querySelector("[data-dismiss]").addEventListener("click", () => dismissToast(toast));
 
     toast.querySelectorAll("[data-ms]").forEach(btn => {
         btn.addEventListener("click", () => {
-            scheduleReminder(subject, parseInt(btn.dataset.ms));
+            // Read pendingThread at click time — observer may have populated it since toast appeared
+            scheduleReminder(subject, parseInt(btn.dataset.ms), pendingThread.id, pendingThread.path);
             showReminderConfirm(toast, btn.dataset.label);
         });
     });
 
     toast.querySelector(".be-reminder-custom-trigger").addEventListener("click", () => {
-        showCustomInput(toast, subject);
+        showCustomInput(toast, subject, pendingThread);
     });
 }
 
-function showCustomInput(toast, subject) {
+function showCustomInput(toast, subject, pendingThread = {}) {
     const options = toast.querySelector(".be-reminder-options");
     options.innerHTML = `
         <div class="be-reminder-custom">
@@ -700,7 +711,7 @@ function showCustomInput(toast, subject) {
         const unitNames = { min: "minute", hr: "hour", day: "day" };
         const ms = val * multipliers[unit];
         const label = `${val} ${unitNames[unit]}${val !== 1 ? "s" : ""}`;
-        scheduleReminder(subject, ms);
+        scheduleReminder(subject, ms, pendingThread.id, pendingThread.path);
         showReminderConfirm(toast, label);
     });
 
@@ -745,14 +756,166 @@ function dismissToast(toast) {
     setTimeout(() => toast.remove(), 300);
 }
 
-function scheduleReminder(subject, ms) {
+function scheduleReminder(subject, ms, capturedThreadId = null, capturedThreadPath = null) {
     const id = "be_reminder_" + Date.now();
     const dueTime = Date.now() + ms;
+    // For replies: captured values come from the URL at send-click time (before Gmail navigates away).
+    // For new emails: both are null at send time; by now Gmail has navigated to #sent/THREADID.
+    const threadId = capturedThreadId || getCurrentThreadId();
+    const threadPath = capturedThreadPath || getCurrentThreadPath();
+    console.log("[BetterEmail] Reminder scheduled — subject:", subject, "threadId:", threadId, "threadPath:", threadPath);
     try {
-        chrome.runtime.sendMessage({ type: "SET_REMINDER", id, subject, dueTime });
+        chrome.runtime.sendMessage({ type: "SET_REMINDER", id, subject, dueTime, threadId, threadPath });
     } catch (e) {
         console.warn("[BetterEmail] Extension context invalidated — please refresh the page.", e);
     }
+}
+
+// Valid Gmail URL thread IDs are alphanumeric (e.g. "CwCPbpQHJcjrSFlVPxcprfrKKSQmqXb").
+// Gmail's *internal* DOM thread IDs look like "thread-f:1857966367691616753" (contain a colon)
+// and cannot be used in Gmail hash URLs. This regex accepts only URL-safe IDs.
+const GMAIL_THREAD_ID_RE = /^[A-Za-z0-9_\-]{8,}$/;
+
+function getCurrentThreadId() {
+    // URL hash — the only reliable source of URL-navigable thread IDs.
+    // Formats: #inbox/ID, #sent/ID, #label/NAME/ID, #search/QUERY/ID
+    // Strip ?compose=new or other query params that Gmail appends when a compose window is open.
+    const hash = window.location.hash.replace('#', '');
+    const parts = hash.split('/');
+    if (parts.length >= 2) {
+        const folder = parts[0].toLowerCase();
+        const MAIL_FOLDERS = new Set(['inbox', 'sent', 'trash', 'spam', 'all', 'starred',
+            'imp', 'scheduled', 'snoozed', 'chats', 'drafts']);
+        const threadPart = parts[1].split('?')[0]; // strip ?compose=new etc.
+        if (MAIL_FOLDERS.has(folder) && GMAIL_THREAD_ID_RE.test(threadPart)) {
+            console.log("[BetterEmail] threadId from URL hash:", threadPart);
+            return threadPart;
+        }
+        // #label/NAME/THREADID or #search/QUERY/THREADID
+        if (parts.length >= 3) {
+            const threadPart3 = parts[2].split('?')[0];
+            if (GMAIL_THREAD_ID_RE.test(threadPart3)) {
+                console.log("[BetterEmail] threadId from URL (label/search):", threadPart3);
+                return threadPart3;
+            }
+        }
+    }
+    console.log("[BetterEmail] threadId: could not find. hash was:", window.location.hash);
+    return null;
+}
+
+// Builds the Gmail URL for a reminder — used by both popup and panel clicks.
+// Gmail's hash search uses + for spaces: in:sent+subject:%22Subject%22
+function contentReminderUrl(reminder) {
+    if (reminder?.threadPath) return `https://mail.google.com/mail/u/0/#${reminder.threadPath}`;
+    // Only use threadId if it's a valid URL-navigable ID — not internal "thread-f:..." DOM format
+    if (reminder?.threadId && GMAIL_THREAD_ID_RE.test(reminder.threadId)) {
+        return `https://mail.google.com/mail/u/0/#inbox/${reminder.threadId}`;
+    }
+    if (reminder?.subject) {
+        const clean = reminder.subject.replace(/"/g, "'");
+        const encoded = `in:sent+subject:%22${clean.replace(/ /g, '+')}%22`;
+        return `https://mail.google.com/mail/u/0/#search/${encoded}`;
+    }
+    return "https://mail.google.com/mail/u/0/#sent";
+}
+
+// Returns the full hash path (e.g. "sent/CwCPbpQH..." or "inbox/AbCdEf...")
+// so navigation uses the correct Gmail folder, not always #inbox.
+// Strips ?compose=new and other query params Gmail appends when a compose window is open.
+function getCurrentThreadPath() {
+    const hash = window.location.hash.replace('#', '');
+    const parts = hash.split('/');
+    if (parts.length >= 2) {
+        const folder = parts[0].toLowerCase();
+        const MAIL_FOLDERS = new Set(['inbox', 'sent', 'trash', 'spam', 'all', 'starred',
+            'imp', 'scheduled', 'snoozed', 'chats', 'drafts']);
+        const threadPart = parts[1].split('?')[0]; // strip ?compose=new etc.
+        if (MAIL_FOLDERS.has(folder) && GMAIL_THREAD_ID_RE.test(threadPart)) {
+            return `${folder}/${threadPart}`;
+        }
+        // label/NAME/THREADID or search/QUERY/THREADID
+        if (parts.length >= 3) {
+            const threadPart3 = parts[2].split('?')[0];
+            if (GMAIL_THREAD_ID_RE.test(threadPart3)) {
+                return `${parts[0]}/${parts[1]}/${threadPart3}`;
+            }
+        }
+    }
+    return null;
+}
+
+// After a new-compose send, Gmail shows a "Message sent. View message." notification.
+// The "View message" link contains the sent thread path. This observer captures it
+// and writes it into pendingThread so scheduleReminder has it when the user picks a time.
+function watchForSentThread(pendingThread) {
+    let found = false;
+
+    function tryLink(el) {
+        if (found || !el) return;
+        const href = el.getAttribute && (el.getAttribute('href') || '');
+        // Handle both "#sent/ID" and "/mail/u/0/#sent/ID" and full https://... URLs
+        const m = href.match(/(?:#)(sent|inbox|all)\/([A-Za-z0-9_\-]{8,})/);
+        if (m) {
+            pendingThread.path = `${m[1]}/${m[2]}`;
+            pendingThread.id = m[2];
+            found = true;
+            console.log("[BetterEmail] watchForSentThread: captured", pendingThread.path);
+            cleanup();
+        }
+    }
+
+    const observer = new MutationObserver((mutations) => {
+        if (found) return;
+        for (const mut of mutations) {
+            for (const node of mut.addedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                // Check the node itself and all descendant links
+                if (node.tagName === 'A') tryLink(node);
+                node.querySelectorAll('a[href]').forEach(tryLink);
+            }
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    function onHashChange() {
+        if (found) return;
+        const path = getCurrentThreadPath();
+        if (path) {
+            pendingThread.path = path;
+            pendingThread.id = path.split('/').pop();
+            found = true;
+            console.log("[BetterEmail] watchForSentThread: hashchange captured", path);
+            cleanup();
+        }
+    }
+    window.addEventListener('hashchange', onHashChange);
+
+    const timeout = setTimeout(() => {
+        if (!found) console.log("[BetterEmail] watchForSentThread: timed out (no sent link found in DOM)");
+        cleanup();
+    }, 30000);
+
+    function cleanup() {
+        observer.disconnect();
+        window.removeEventListener('hashchange', onHashChange);
+        clearTimeout(timeout);
+    }
+}
+
+function autoDismissReminderForThread(threadId) {
+    chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
+        const toRemove = be_reminders.filter(r => r.threadId === threadId);
+        if (toRemove.length === 0) {
+            console.log("[BetterEmail] No reminders to auto-dismiss for thread:", threadId);
+            return;
+        }
+        console.log("[BetterEmail] Auto-dismissing", toRemove.length, "reminder(s) for thread:", threadId);
+        const updated = be_reminders.filter(r => r.threadId !== threadId);
+        chrome.storage.local.set({ be_reminders: updated });
+        // chrome.alarms not available in content scripts — proxy through background
+        toRemove.forEach(r => chrome.runtime.sendMessage({ type: "CLEAR_ALARM", id: r.id }));
+    });
 }
 
 function escapeHTML(str) {
@@ -834,6 +997,8 @@ function tryInjectPanel() {
 
     chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
         renderPanelReminders(be_reminders);
+        // Auto-open panel on load if there are any active reminders
+        if (be_reminders.length > 0) panel.classList.add("be-panel-open");
     });
 
     // Re-render whenever storage changes
@@ -910,11 +1075,23 @@ function renderPanelReminders(reminders) {
 
         item.querySelector(".be-panel-dismiss").addEventListener("click", e => {
             e.stopPropagation();
+            chrome.runtime.sendMessage({ type: "CLEAR_ALARM", id: r.id });
             chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
                 chrome.storage.local.set({
                     be_reminders: be_reminders.filter(rem => rem.id !== r.id)
                 });
             });
+        });
+
+        // Click anywhere on the item (except dismiss) — opens the thread in a new tab.
+        // Must proxy through background because chrome.tabs is not accessible from content scripts.
+        item.style.cursor = 'pointer';
+        item.addEventListener("click", e => {
+            if (e.target.closest(".be-panel-dismiss")) return;
+            panel.classList.remove("be-panel-open");
+            const url = contentReminderUrl(r);
+            console.log("[BetterEmail] Panel reminder click — threadPath:", r.threadPath, "threadId:", r.threadId, "url:", url);
+            chrome.runtime.sendMessage({ type: "OPEN_TAB", url });
         });
 
         body.appendChild(item);

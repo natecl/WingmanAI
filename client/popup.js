@@ -6,6 +6,23 @@
 const API_BASE = typeof BE_CONFIG !== 'undefined' ? BE_CONFIG.API_URL : "http://localhost:3000";
 const API_URL = API_BASE + "/analyze-email";
 
+const GMAIL_THREAD_ID_RE = /^[A-Za-z0-9_\-]{8,}$/;
+
+function reminderUrl(reminder) {
+    if (reminder?.threadPath) return `https://mail.google.com/mail/u/0/#${reminder.threadPath}`;
+    // Only use threadId if it's a URL-navigable ID — not internal "thread-f:..." format
+    if (reminder?.threadId && GMAIL_THREAD_ID_RE.test(reminder.threadId)) {
+        return `https://mail.google.com/mail/u/0/#inbox/${reminder.threadId}`;
+    }
+    if (reminder?.subject) {
+        // Gmail hash search format: + for spaces, %22 for quotes
+        const clean = reminder.subject.replace(/"/g, "'");
+        const encoded = `in:sent+subject:%22${clean.replace(/ /g, '+')}%22`;
+        return `https://mail.google.com/mail/u/0/#search/${encoded}`;
+    }
+    return "https://mail.google.com/mail/u/0/#sent";
+}
+
 /* =====================================================
    DOM REFERENCES
 ===================================================== */
@@ -217,11 +234,13 @@ function renderReminders(reminders) {
             </div>
         `;
 
-        item.querySelector(".ri-open-btn").addEventListener("click", () => {
-            chrome.tabs.create({ url: "https://mail.google.com" });
+        item.querySelector(".ri-open-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            chrome.tabs.create({ url: reminderUrl(r) });
         });
 
-        item.querySelector(".ri-dismiss-btn").addEventListener("click", () => {
+        item.querySelector(".ri-dismiss-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
             dismissReminder(r.id);
             item.classList.add("ri-removing");
             setTimeout(() => {
@@ -230,6 +249,13 @@ function renderReminders(reminders) {
                 if (remaining === 0) showEmptyState(list, badge);
                 else badge.textContent = remaining;
             }, 250);
+        });
+
+        // Click anywhere on the row (except buttons) to open the thread
+        item.style.cursor = 'pointer';
+        item.addEventListener("click", (e) => {
+            if (e.target.closest(".ri-open-btn") || e.target.closest(".ri-dismiss-btn")) return;
+            chrome.tabs.create({ url: reminderUrl(r) });
         });
 
         list.appendChild(item);
