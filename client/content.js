@@ -160,6 +160,7 @@ function injectSidebar() {
 
     // Shift Gmail layout
     document.body.classList.add('be-sidebar-active');
+    document.documentElement.classList.add('be-sidebar-active');
 
     // Wire up all sidebar functionality
     wireSidebarEvents(sidebar, toggle);
@@ -363,11 +364,13 @@ function wireSidebarEvents(sidebar, toggle) {
     sidebar.querySelector('#be-sidebar-collapse').addEventListener('click', () => {
         sidebar.classList.add('be-sidebar-collapsed');
         document.body.classList.remove('be-sidebar-active');
+        document.documentElement.classList.remove('be-sidebar-active');
     });
 
     toggle.addEventListener('click', () => {
         sidebar.classList.remove('be-sidebar-collapsed');
         document.body.classList.add('be-sidebar-active');
+        document.documentElement.classList.add('be-sidebar-active');
     });
 
     // --- Tab switching ---

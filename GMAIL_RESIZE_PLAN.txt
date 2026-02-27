@@ -1,0 +1,86 @@
+# BetterEmailV2 Gmail Layout Resizing Plan
+
+## Goal
+Make the entire Gmail UI smaller proportionally when the BetterEmail Copilot sidebar is activated. Currently, the sidebar overlays the right side of Gmail because the `padding-right: 350px !important;` rule on the `body` only forces the content leftward, but doesn't actually tell Gmail's internal responsive engine (which is largely absolute-positioned or flex) to shrink the main app container. As a result, the right edge of Gmail (timestamps, gear icon, pagination, scrollbars) is hidden underneath the new sidebar.
+
+## The Problem
+Gmail is an explicitly sized web app. `body` and `html` have `100%` width/height and overflow hidden. Inside the body, Gmail uses absolute positioning (`top: 0; right: 0; bottom: 0; left: 0;`) or flex layouts to pin its UI panels. Applying padding to `body` doesn't change `right: 0` constraints for absolute children. 
+
+## The Solution
+We must constrain the *actual width* of the `body` or the top-level Gmail wrapper so that Gmail's internal resize observer and CSS calc() see a smaller viewport.
+
+### Step 1: Update `client/content.css`
+Replace the `padding-right` rule with an explicit width constraint on the `html` and `body` elements when the sidebar is active.
+
+```css
+/* Remove the existing padding-right rule */
+/* Old:
+body.be-sidebar-active {
+    padding-right: 350px !important;
+    transition: padding-right 0.3s ease;
+}
+*/
+
+/* New: */
+html.be-sidebar-active, 
+body.be-sidebar-active {
+    /* Hard-limit the width of the document so all absolutely positioned 
+       right=0 elements in Gmail snap to the new right edge */
+    max-width: calc(100vw - 350px) !important;
+    width: calc(100vw - 350px) !important;
+    overflow-x: hidden !important; 
+}
+
+/* Because Gmail might put its own transition, add a smooth wrapper transition on body */
+body.be-sidebar-active {
+    transition: width 0.3s ease, max-width 0.3s ease;
+}
+
+/* Make sure the sidebar itself still aligns to the edge of the WINDOW, 
+   even though the body width is artificially constrained. 
+   Currently, the sidebar css uses `position: fixed; right: 0;` which binds to the viewport, 
+   so restricting body width shouldn't accidentally push the sidebar left. Just verify it 
+   still works reliably. */
+```
+
+### Step 2: Ensure Top-level Containers Listen to Width
+Gmail frequently uses a master wrapper, for instance `body > div.UI` or `body > div:first-child`. To cover all bases, we should explicitly apply structural resizing to all direct child containers of the body.
+
+Add this safely to `client/content.css`:
+```css
+/* Force inner Gmail UI wrappers to respect the new body bounds */
+body.be-sidebar-active > div {
+    max-width: 100% !important;
+}
+```
+
+### Step 3: Handle the Toggle Button Logic in `content.js`
+The toggle button logic in `client/content.js` might need a minor tweak so it adds the `.be-sidebar-active` class to the `html` tag as well as the `body`.
+
+In `client/content.js` inside the `injectSidebar()` logic or sidebar collapse logic:
+```javascript
+// Find where body.classList.toggle('be-sidebar-active') happens
+// and apply it to document.documentElement (html) as well.
+
+function toggleSidebar() {
+    const isNowCollapsed = wrapper.classList.toggle('be-sidebar-collapsed');
+    
+    // Toggle active state on BOTH html and body
+    if (isNowCollapsed) {
+        document.body.classList.remove('be-sidebar-active');
+        document.documentElement.classList.remove('be-sidebar-active');
+    } else {
+        document.body.classList.add('be-sidebar-active');
+        document.documentElement.classList.add('be-sidebar-active');
+    }
+}
+```
+*(Make sure to match the function name or event listener previously written by Claude code.)*
+
+## Instructions for Claude Code Execution
+1. Find the CSS rules for `body.be-sidebar-active` inside `client/content.css`.
+2. Delete the `padding-right` style.
+3. Replace it with the `width: calc(100vw - 350px) !important;` and `max-width` implementation outlined above.
+4. Also attach `.be-sidebar-active` to the `html` selector alongside the `body`.
+5. Check `client/content.js` where the `.be-sidebar-active` class is added/removed to the `document.body` and ensure it adds/removes it from `document.documentElement` as well.
+6. Test your changes locally or finish up so the user can refresh the extension in their browser.

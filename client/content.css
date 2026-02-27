@@ -19,9 +19,20 @@
    GMAIL LAYOUT SHIFT
 ========================================================= */
 
+html.be-sidebar-active,
 body.be-sidebar-active {
-    padding-right: 350px !important;
-    transition: padding-right 0.3s ease;
+    max-width: calc(100vw - 350px) !important;
+    width: calc(100vw - 350px) !important;
+    overflow-x: hidden !important;
+}
+
+body.be-sidebar-active {
+    transition: width 0.3s ease, max-width 0.3s ease;
+}
+
+/* Force inner Gmail UI wrappers to respect the new body bounds */
+body.be-sidebar-active > div {
+    max-width: 100% !important;
 }
 
 
