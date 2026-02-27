@@ -117,10 +117,10 @@ BetterEmailV2/
 │   ├── manifest.json
 │   ├── config.example.js            # Client config template (copy to config.js)
 │   ├── config.js                    # (gitignored) actual config with keys
-│   ├── auth.js                      # Supabase Google OAuth via chrome.identity
-│   ├── popup.html / popup.js / popup.css
-│   ├── content.js / content.css     # Gmail injection (analyzer + scraper UI)
-│   ├── background.js                # Service worker (reminders)
+│   ├── auth.js                      # Supabase Google OAuth via chrome.identity (loaded as content script)
+│   ├── popup.html / popup.js / popup.css  # Legacy popup (sidebar is now the main UI)
+│   ├── content.js / content.css     # Gmail injection (Copilot sidebar + semantic search overlay)
+│   ├── background.js                # Service worker (reminders, auth, API proxy)
 │   └── icons/
 ├── public/
 │   └── index.html
@@ -143,12 +143,13 @@ BetterEmailV2/
 - `POST /search` — Semantic email search (requires auth, accepts query + filters)
 
 ## Implemented Features
-- **Email Quality Analyzer** — Inline Gmail compose analyzer with context-aware AI feedback
-- **Follow-up Reminders** — Toast notification after sending, with custom scheduling
-- **Reminders Panel** — Fixed header chip showing active reminders
-- **Web Scraper / Lead Finder** — AI-powered contact discovery with 3-layer caching (prompt_cache → email_leads → live pipeline)
-- **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. All features (Lead Finder, Semantic Search, Email Analyzer, Follow-up Reminders) are locked behind authentication in both popup and content scripts. Auth state changes are detected via `chrome.storage.onChanged` and UIs unlock/lock instantly without page refresh.
-- **Semantic Search** — Natural language email search using OpenAI embeddings + Supabase pgvector, with Gmail sync, background indexing worker. The search UI **replaces the native Gmail search bar** with a custom input wrapped in an animated glow ring effect, with filter and sync controls alongside it.
+- **Copilot Sidebar** — Persistent right-aligned sidebar that is the main control center for all BetterEmail features. Gmail shifts left to accommodate the 350px sidebar. Replaces the old extension popup as the primary UI.
+- **Email Quality Analyzer** — Sidebar compose analyzer reads from the active Gmail compose window and provides context-aware AI feedback. Also supports AI-powered email drafting from resume.
+- **Follow-up Reminders** — Toast notification after sending, with custom scheduling. Reminders are also displayed in the sidebar's Main tab.
+- **Web Scraper / Lead Finder** — AI-powered contact discovery with 3-layer caching (prompt_cache → email_leads → live pipeline). Accessible via sidebar Leads tab.
+- **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. Sign-in/out is handled directly in the sidebar. Auth state changes are detected via `chrome.storage.onChanged` and the sidebar unlocks/locks instantly without page refresh.
+- **Semantic Search** — Natural language email search using OpenAI embeddings + Supabase pgvector, with Gmail sync, background indexing worker. Available in both the sidebar Search tab AND the Gmail search bar overlay with animated glow ring effect (toggled via Shift key or toggle button).
+- **Resume Upload** — PDF resume upload in sidebar Settings tab for AI-powered email drafting.
 
 ## Database Tables (Supabase)
 - `scraped_pages` — Cache of scraped page data (url PK)

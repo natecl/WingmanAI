@@ -24,6 +24,8 @@
         "https://mail.google.com/*"
       ],
       "js": [
+        "config.js",
+        "auth.js",
         "content.js"
       ],
       "css": [

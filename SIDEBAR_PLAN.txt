@@ -1,0 +1,66 @@
+# BetterEmailV2 Sidebar Copilot Implementation Plan
+
+## Goal
+Transition all BetterEmail extension features into a persistent, right-aligned Copilot-style sidebar. The normal Gmail UI must slide over to the left and shrink to accommodate the sidebar on the right side of the screen.
+
+## 1. UI Resizing & Layout Changes (client/content.js & client/content.css)
+- **Gmail Layout Adjustment**: 
+  - Gmail's layout can be dynamic, but adding `width: calc(100% - 350px) !important;` or `padding-right: 350px !important;` to the `body` or main inbox container usually shifts the UI perfectly.
+  - Add a CSS rule to `client/content.css`:
+    ```css
+    body.be-sidebar-active {
+        padding-right: 350px !important;
+        transition: padding-right 0.3s ease;
+    }
+    ```
+- **Sidebar Container**: 
+  - Create a new fixed `div` (e.g., `#be-sidebar-wrapper`) in `client/content.js`.
+  - Style it to be fixed on the right: `position: fixed; right: 0; top: 0; height: 100vh; width: 350px; z-index: 999999; background: white; border-left: 1px solid #e0e0e0; box-shadow: -2px 0 5px rgba(0,0,0,0.05);`
+
+## 2. Feature Migration & Consolidation
+Currently, features are spread out:
+- Inline Email Analyzer (`attachAnalyzer` in `content.js`).
+- Auth, Resume Upload, and Reminders List (in `popup.html` / `popup.js`).
+- Follow-up Toasts & Semantic Search / Lead Finder (referenced in `content.js`).
+
+**Changes needed to make it a unified "Copilot" sidebar:**
+
+### A. Core Architecture & Auth
+- The sidebar should completely replace `popup.html` as the main control center.
+- Render a header with "Sign in / Sign out" functionality originally handled in `popup.js`.
+- Make sure `auth.js` logic is used correctly since the sidebar runs in the content script environment (not the popup environment).
+
+### B. Compose Analyzer & Draft Generator
+- **Current Behavior**: The analyzer bar (`.be-inline-analyzer`) injects directly into the Gmail compose box.
+- **New Behavior**: Move the "Context/Purpose" input, "Analyze" button, and "Draft" button from `content.js` into the Copilot sidebar under a "Compose" tab or section.
+- **Implementation Detail**: 
+  - When the user starts writing an email and clicks "Analyze" in the sidebar, the sidebar needs to find the active compose box using the existing DOM selectors.
+  - Rely on the existing `findEditorInCompose()` and `findAnyVisibleEditor()` functions to scrape text from Gmail.
+  - Render the JSON-array analysis results (`resultsPanel`) entirely inside the sidebar instead of floating below the email.
+
+### C. Semantic Search & Lead Finder
+- Make discrete tabs or accordions in the sidebar for these tools, integrating any existing injected UI into the persistent right sidebar.
+- Users can search past emails or find leads naturally without cluttering the inbox view.
+
+### D. Settings & Resume Upload
+- Migrate the resume PDF upload HTML structure and Javascript logic (`#be-resume-file`, `#be-resume-save`, `.be-upload-zone`) from `popup.html`/`popup.js` into a "Settings" tab in the new sidebar container.
+
+## 3. Step-by-Step Instructions for Claude
+
+### Phase 1: Injecting the Sidebar & Moving Gmail
+1. Update `client/content.css` to include the styles for `body.be-sidebar-active` and `#be-sidebar-wrapper`.
+2. Update `client/content.js` to create and inject the `#be-sidebar-wrapper` container into the DOM right when the script runs (e.g., in the `init()` function). Add `document.body.classList.add('be-sidebar-active')`.
+
+### Phase 2: HTML/CSS Migration from Popup
+1. Take the UI HTML structure from `client/popup.html` (the main tabs, Settings, Reminders section, Auth card) and convert it into a DOM construction or template literal insertion inside `client/content.js` appended to the `#be-sidebar-wrapper`.
+2. Move relevant CSS from `client/popup.css` into `client/content.css`.
+
+### Phase 3: JavaScript Logic Migration
+1. Move the initialization logic and DOM event listeners from `client/popup.js` to `client/content.js` (or a dedicated `client/sidebar.js` content script module).
+2. Ensure event listeners for the tabs, settings, and auth buttons attach to the newly injected sidebar elements.
+3. Remember to continue using the `apiFetch()` proxy for `fetch` requests to `localhost:3000` to avoid CORS/Mixed-Content errors, as the code is running in the content context.
+
+### Phase 4: Re-wiring the Analyzer UI
+1. Remove or modify the code that attaches `.be-inline-analyzer` inside the compose box (`attachAnalyzer`).
+2. Instead, wire the sidebar's new "Analyze" and "Draft" buttons to call `getEditorContent(findAnyVisibleEditor())`.
+3. Handle the loading state and display the `renderResults` inside the sidebar UI.

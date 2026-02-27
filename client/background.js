@@ -37,6 +37,56 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         signInWithGoogleBackground()
             .then(session => sendResponse({ session }))
             .catch(error => sendResponse({ error: error.message }));
+    } else if (msg.type === "SIGN_OUT") {
+        (async () => {
+            try {
+                const result = await new Promise(r => chrome.storage.local.get('be_supabase_session', r));
+                const session = result.be_supabase_session || null;
+                if (session && session.access_token) {
+                    try {
+                        await fetch(`${BE_CONFIG.SUPABASE_URL}/auth/v1/logout`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${session.access_token}`,
+                                'apikey': BE_CONFIG.SUPABASE_ANON_KEY
+                            }
+                        });
+                    } catch { /* ignore */ }
+                }
+                await new Promise(r => chrome.storage.local.remove('be_supabase_session', r));
+                sendResponse({ success: true });
+            } catch (err) {
+                sendResponse({ error: err.message });
+            }
+        })();
+    } else if (msg.type === "FILE_UPLOAD") {
+        // Proxy file uploads — content scripts can't send FormData directly
+        (async () => {
+            try {
+                const formData = new FormData();
+                // Convert base64 back to a Blob
+                const byteChars = atob(msg.fileData);
+                const byteArray = new Uint8Array(byteChars.length);
+                for (let i = 0; i < byteChars.length; i++) {
+                    byteArray[i] = byteChars.charCodeAt(i);
+                }
+                const blob = new Blob([byteArray], { type: msg.fileType || 'application/pdf' });
+                formData.append(msg.fieldName || 'resume', blob, msg.fileName || 'file.pdf');
+
+                const headers = {};
+                if (msg.token) headers['Authorization'] = `Bearer ${msg.token}`;
+
+                const res = await fetch(msg.url, {
+                    method: 'POST',
+                    headers,
+                    body: formData
+                });
+                const data = await res.json();
+                sendResponse({ ok: res.ok, status: res.status, data });
+            } catch (err) {
+                sendResponse({ ok: false, status: 0, error: err.message });
+            }
+        })();
     } else if (msg.type === "API_FETCH") {
         // Proxy API requests from content scripts through the background
         // to avoid mixed-content (HTTPS→HTTP) and CORS issues
