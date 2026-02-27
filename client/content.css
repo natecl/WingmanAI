@@ -1666,3 +1666,39 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     background: #fce8e8;
     color: #c5221f;
 }
+
+/* =========================================================
+   GMAIL UI SIDEBAR FIXES (Search & Compose Window)
+========================================================= */
+
+/* Fix Gmail top header/search bar when sidebar is active */
+body.be-sidebar-active header#gb,
+body.be-sidebar-active .gb_pd, 
+body.be-sidebar-active [role="banner"] {
+    max-width: calc(100vw - 350px) !important;
+    width: calc(100vw - 350px) !important;
+    box-sizing: border-box;
+}
+
+/* Ensure the central search box flex container doesn't get hidden */
+body.be-sidebar-active [role="search"] {
+    display: flex !important;
+    visibility: visible !important;
+    max-width: 800px !important; 
+}
+
+/* Push the compose window left to clear the sidebar */
+/* Selectors target the common float-bottom-right compose dialog wrappers in Gmail */
+body.be-sidebar-active .nH.Hd[role="dialog"],
+body.be-sidebar-active .dw,
+body.be-sidebar-active .inboxsdk__compose { 
+    right: 360px !important; /* 350px sidebar + 10px margin */
+    transition: right 0.3s ease;
+}
+
+/* Handle multiple compose windows (Gmail stacks them leftward) */
+/* We might need a generic rule for absolute elements pegged to the right */
+body.be-sidebar-active .no { 
+    right: 360px !important;
+    transition: right 0.3s ease;
+}

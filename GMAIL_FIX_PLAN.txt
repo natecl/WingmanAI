@@ -1,0 +1,65 @@
+# BetterEmailV2 Gmail UI Fix Plan
+
+## Goal
+Fix two specific layout issues that occur when the BetterEmail Copilot sidebar is activated:
+1. **Search Bar Missing:** The main Gmail search bar at the top disappears or gets cut off.
+2. **Compose Window Overlap:** When clicking "Compose", the new message window falls out of the visible screen area or is covered by the sidebar on the right.
+
+## Issue 1: Search Bar Missing
+### The Problem
+Gmail's header search bar (`.gb_he` or `.gb_ee` or `.gb_je` usually) relies on complex flexbox or absolute positioning tied to the 100vw window width. When we force `max-width` on the `html` and `body`, Gmail's internal responsive breakpoint calculations might hide the search bar thinking it's on a mobile device, or the absolute positioning pushes it right relative to a container that didn't shrink.
+
+### The Solution for Claude Code
+Add CSS rules to explicitly force the search bar container to remain visible and properly positioned relative to the new reduced width.
+
+1. **Find the Search Container:** Gmail's top search bar wrapper is usually `header#gb` or an element with role="search". 
+2. **Update `client/content.css`:**
+```css
+/* Fix Gmail top header/search bar when sidebar is active */
+body.be-sidebar-active header#gb,
+body.be-sidebar-active .gb_pd, /* Example Gmail header classes */
+body.be-sidebar-active [role="banner"] {
+    max-width: calc(100vw - 350px) !important;
+    width: calc(100vw - 350px) !important;
+    box-sizing: border-box;
+}
+
+/* Ensure the central search box flex container doesn't get hidden */
+body.be-sidebar-active [role="search"] {
+    display: flex !important;
+    visibility: visible !important;
+    max-width: 600px !important; /* Cap the search bar width */
+}
+```
+*Claude will need to inspect the live Gmail DOM or use reliable selectors to ensure the header wrapper shrinks to `calc(100vw - 350px)` without hiding its contents.*
+
+## Issue 2: Compose Window Overlap
+### The Problem
+Gmail's new message compose window is absolutely positioned relative to the bottom right of the screen (typically `right: 0` or something close to it, like `right: 48px; bottom: 0;`). Because it is appended to the body, and Gmail tries to compute its position based on the native `window.innerWidth`, it ignores our `body` `max-width` constraint and slides under the 350px fixed sidebar.
+
+### The Solution for Claude Code
+We need to force the `.nH.Hd` or `.dw` (common classes for the compose wrapper) to position itself relative to our *new* right edge (i.e., `350px` plus whatever margin Gmail usually uses).
+
+1. **Update `client/content.css`:**
+```css
+/* Push the compose window left to clear the sidebar */
+/* Selectors target the common float-bottom-right compose dialog wrappers in Gmail */
+body.be-sidebar-active .nH.Hd[role="dialog"],
+body.be-sidebar-active .dw,
+body.be-sidebar-active .inboxsdk__compose { /* If using inboxsdk */
+    right: 360px !important; /* 350px sidebar + 10px margin */
+    transition: right 0.3s ease;
+}
+
+/* Handle multiple compose windows (Gmail stacks them leftward) */
+/* We might need a generic rule for absolute elements pegged to the right */
+body.be-sidebar-active .no { /* .no is often the multi-compose container */
+    right: 350px !important;
+}
+```
+
+## Instructions for Claude Code Execution
+1. Open `client/content.css`.
+2. Add the specific rules outlined in the plan to fix the `[role="search"]` / `header#gb` width and visibility.
+3. Add the specific rules to push the Gmail compose dialog (`.nH.Hd[role="dialog"]`, `.dw`, `.no`) `360px` from the right when `body.be-sidebar-active` is present.
+4. If styling `.no` or `.nH.Hd` doesn't work, instruct Claude to inject a `MutationObserver` in `client/content.js` that watches for compose window creation (`div[role="dialog"]`) and explicitly sets `element.style.setProperty('right', '360px', 'important')`. CSS is preferred, but JS MutationObserver is a solid fallback if Gmail's inline styles override the CSS.
