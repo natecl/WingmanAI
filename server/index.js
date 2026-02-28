@@ -154,6 +154,81 @@ Be concise but thorough. Format your response with clear sections.`;
     }
 });
 
+// AI: Classify if an email is a follow-up/reply to a prior conversation
+app.post('/ai/classify-followup', requireAuth, async (req, res) => {
+    const { subject = '', body = '' } = req.body;
+    if (!subject && !body) return res.status(400).json({ error: 'subject or body required' });
+
+    // Fast heuristic — no AI needed for clear Re: replies
+    if (/^re:/i.test(subject)) return res.json({ isFollowUp: true, source: 'heuristic' });
+
+    try {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.GEMINI_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'google/gemini-2.0-flash-001',
+                max_tokens: 5,
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You determine if an email is a follow-up or reply to a prior conversation (not a brand-new outreach). Answer only with the word "yes" or "no".'
+                    },
+                    {
+                        role: 'user',
+                        content: `Subject: ${subject}\nBody excerpt: ${body.substring(0, 400)}`
+                    }
+                ]
+            })
+        });
+        const data = await response.json();
+        const answer = (data.choices?.[0]?.message?.content || '').toLowerCase().trim();
+        res.json({ isFollowUp: answer.startsWith('yes'), source: 'gemini' });
+    } catch (err) {
+        console.error('[AI classify-followup error]', err.message);
+        res.json({ isFollowUp: false, source: 'error' });
+    }
+});
+
+// AI: Summarize an email subject/body in 4-6 words
+app.post('/ai/summarize-email', requireAuth, async (req, res) => {
+    const { subject = '', body = '' } = req.body;
+    if (!subject && !body) return res.status(400).json({ error: 'subject or body required' });
+
+    try {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.GEMINI_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'google/gemini-2.0-flash-001',
+                max_tokens: 20,
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Generate a 4-6 word summary of this email\'s core topic. Output only the summary phrase, no punctuation at the end, no quotes.'
+                    },
+                    {
+                        role: 'user',
+                        content: `Subject: ${subject}\nBody excerpt: ${body.substring(0, 400)}`
+                    }
+                ]
+            })
+        });
+        const data = await response.json();
+        const summary = (data.choices?.[0]?.message?.content || '').trim().replace(/[".]+$/, '').substring(0, 60);
+        res.json({ summary: summary || subject });
+    } catch (err) {
+        console.error('[AI summarize-email error]', err.message);
+        res.json({ summary: subject || 'Email reminder' });
+    }
+});
+
 // Web Scraper endpoint
 app.post('/scrape-emails', requireAuth, async (req, res) => {
     try {
@@ -301,6 +376,10 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
                     processed++;
                     if (result === 'new' || result === 'changed') queued++;
                 } catch (msgErr) {
+                    if (msgErr.code === 'GMAIL_AUTH_ERROR') {
+                        console.warn(`[Sync] Gmail token expired for user ${req.userId} — stopping batch. User needs to re-authenticate.`);
+                        break; // All subsequent messages will also fail — abort now
+                    }
                     console.error(`Failed to process message ${msgId}:`, msgErr.message);
                 }
             }

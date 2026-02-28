@@ -88,6 +88,12 @@ async function fetchMessage(accessToken, messageId) {
         headers: { Authorization: `Bearer ${accessToken}` }
     });
 
+    if (res.status === 401 || res.status === 403) {
+        const err = new Error(`Gmail token expired or unauthorized (${res.status})`);
+        err.code = 'GMAIL_AUTH_ERROR';
+        err.status = res.status;
+        throw err;
+    }
     if (!res.ok) throw new Error(`Gmail get message error: ${res.status}`);
     return res.json();
 }
