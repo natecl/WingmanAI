@@ -85,6 +85,7 @@ app.use('/gmail/sync', apiLimiter);
 app.use('/search', apiLimiter);
 app.use('/user/resume', apiLimiter);
 app.use('/draft-email', apiLimiter);
+app.use('/draft-personalized-emails', apiLimiter);
 
 // Multer for PDF resume uploads
 const resumeUpload = multer({
@@ -628,6 +629,130 @@ app.post('/draft-email', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Draft email error:', error);
         res.status(500).json({ error: 'Failed to draft email' });
+    }
+});
+
+// Draft personalized emails to up to 3 leads using arXiv research + user resume
+app.post('/draft-personalized-emails', requireAuth, async (req, res) => {
+    try {
+        const { leads } = req.body;
+        if (!Array.isArray(leads) || leads.length === 0) {
+            return res.status(400).json({ error: 'leads array is required' });
+        }
+
+        const topLeads = leads.slice(0, 3);
+
+        // Validate lead fields
+        for (const lead of topLeads) {
+            if (!lead.email || typeof lead.email !== 'string') {
+                return res.status(400).json({ error: 'Each lead must have an email field' });
+            }
+        }
+
+        const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('resume_text')
+            .eq('id', req.userId)
+            .single();
+
+        if (userError || !userData?.resume_text) {
+            return res.status(400).json({ error: 'No resume saved. Add your resume in the Settings tab first.' });
+        }
+
+        const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
+
+        const drafts = await Promise.all(topLeads.map(async (lead) => {
+            const name = (lead.name || '').trim();
+            const detail = (lead.detail || '').trim();
+
+            // Gather research context from arXiv
+            let researchContext = '';
+            try {
+                const query = encodeURIComponent(`${name} ${detail}`);
+                const arxivUrl = `https://arxiv.org/search/?query=${query}&searchtype=author`;
+                const scraped = await firecrawl.scrapeUrl(arxivUrl, { formats: ['markdown'] });
+                if (scraped?.markdown) {
+                    researchContext = scraped.markdown.substring(0, 2000);
+                }
+            } catch (err) {
+                console.warn(`[Draft] arXiv scrape failed for ${name}:`, err.message);
+            }
+
+            // Gather context from their source profile page
+            let sourceContext = '';
+            if (lead.sourceUrl) {
+                try {
+                    const scraped = await firecrawl.scrapeUrl(lead.sourceUrl, { formats: ['markdown'] });
+                    if (scraped?.markdown) {
+                        sourceContext = scraped.markdown.substring(0, 1000);
+                    }
+                } catch (err) {
+                    console.warn(`[Draft] Source URL scrape failed for ${name}:`, err.message);
+                }
+            }
+
+            const contextBlock = [
+                researchContext && `arXiv research:\n${researchContext}`,
+                sourceContext && `Profile page:\n${sourceContext}`
+            ].filter(Boolean).join('\n\n');
+
+            const systemPrompt = `You are an expert at writing personalized academic and professional outreach emails. Write a concise, genuine cold email from the sender to the recipient. Rules:
+- Reference the recipient's specific research or work by name
+- Connect the sender's background (from their resume) to the recipient's interests
+- Under 180 words in the body
+- Sound natural and human, not generic
+- Output valid JSON with exactly two fields: "subject" (string) and "body" (string, plain text, no greeting or signature — just the paragraphs)`;
+
+            const userMessage = `Sender resume:\n${userData.resume_text.substring(0, 3000)}\n\nRecipient: ${name}${detail ? ` (${detail})` : ''}\nRecipient email: ${lead.email}\n\n${contextBlock || 'No additional research context available.'}`;
+
+            try {
+                const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${process.env.CLAUDE_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'anthropic/claude-sonnet-4-5',
+                        max_tokens: 600,
+                        response_format: { type: 'json_object' },
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userMessage }
+                        ]
+                    })
+                });
+
+                const aiData = await aiRes.json();
+                const content = aiData.choices?.[0]?.message?.content || '{}';
+                const parsed = JSON.parse(content);
+
+                return {
+                    name,
+                    email: lead.email,
+                    subject: (parsed.subject || 'Hello from a fellow researcher').substring(0, 150),
+                    body: parsed.body || `Hi,\n\nI came across your work and wanted to reach out.`
+                };
+            } catch (err) {
+                console.error(`[Draft] Claude failed for ${name}:`, err.message);
+                return {
+                    name,
+                    email: lead.email,
+                    subject: `Hello from a fellow researcher`,
+                    body: `Hi ${name},\n\nI came across your work and wanted to reach out.`
+                };
+            }
+        }));
+
+        res.json({ drafts });
+    } catch (error) {
+        console.error('[Draft personalized] Error:', error);
+        res.status(500).json({ error: 'Failed to draft personalized emails' });
     }
 });
 
