@@ -1,9 +1,10 @@
-BetterEmail
+Wingman
 Gmail/Outlook Extension -manifest.json
 
 An AI productivity layer that works directly inside Gmail, automatically managing your communication workflow. The system scores email importance, highlights messages needing attention, and tracks who owes the next reply. It reminds you to respond, suggests follow-ups when others don’t, and helps you find past conversations using semantic search instead of keywords. For outreach, it monitors responses, schedules nudges, and drafts personalized follow-ups. Instead of replacing email, it transforms Gmail into an intelligent, proactive system that ensures nothing important gets missed, forgotten, or lost in your inbox. It turns conversations into trackable tasks with real-time insights and automated decision-making support.
 
 Features:
+Sidebar ui: all the features are implemented into a gmail sidebar that interects with the regular gmail interface.
 Follow up Reminder: if a user hasen't recived a reply to their email in a few days, this extention can remind them to follow up to their email.
 
 Reply reminder: if the user hasn't replied to someone's email in a few days, then this extention can remind them.

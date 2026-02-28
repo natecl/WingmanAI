@@ -1,8 +1,8 @@
 /**
- * BetterEmail V2 - Background Service Worker
+ * Wingman V2 - Background Service Worker
  * Handles follow-up reminder scheduling and notifications
  */
-console.log("[BetterEmail BG] Service worker loaded — v2.1");
+console.log("[Wingman BG] Service worker loaded — v2.1");
 
 /* =========================================================
    MESSAGE HANDLER — receives SET_REMINDER from content.js
@@ -11,15 +11,15 @@ console.log("[BetterEmail BG] Service worker loaded — v2.1");
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === "SET_REMINDER") {
         // Store reminder metadata
-        chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
-            be_reminders.push({
+        chrome.storage.local.get("wm_reminders", ({ wm_reminders = [] }) => {
+            wm_reminders.push({
                 id: msg.id,
                 subject: msg.subject,
                 dueTime: msg.dueTime,
                 threadId: msg.threadId || null,
                 threadPath: msg.threadPath || null
             });
-            chrome.storage.local.set({ be_reminders });
+            chrome.storage.local.set({ wm_reminders });
         });
 
         // Schedule the alarm
@@ -40,20 +40,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     } else if (msg.type === "SIGN_OUT") {
         (async () => {
             try {
-                const result = await new Promise(r => chrome.storage.local.get('be_supabase_session', r));
-                const session = result.be_supabase_session || null;
+                const result = await new Promise(r => chrome.storage.local.get('wm_supabase_session', r));
+                const session = result.wm_supabase_session || null;
                 if (session && session.access_token) {
                     try {
-                        await fetch(`${BE_CONFIG.SUPABASE_URL}/auth/v1/logout`, {
+                        await fetch(`${WM_CONFIG.SUPABASE_URL}/auth/v1/logout`, {
                             method: 'POST',
                             headers: {
                                 'Authorization': `Bearer ${session.access_token}`,
-                                'apikey': BE_CONFIG.SUPABASE_ANON_KEY
+                                'apikey': WM_CONFIG.SUPABASE_ANON_KEY
                             }
                         });
                     } catch { /* ignore */ }
                 }
-                await new Promise(r => chrome.storage.local.remove('be_supabase_session', r));
+                await new Promise(r => chrome.storage.local.remove('wm_supabase_session', r));
                 sendResponse({ success: true });
             } catch (err) {
                 sendResponse({ error: err.message });
@@ -111,7 +111,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
    AUTH HELPER — runs in background to prevent popup termination
 ========================================================= */
 
-const BE_CONFIG = {
+const WM_CONFIG = {
     SUPABASE_URL: 'https://mtokobzepmfgxfnrrpep.supabase.co',
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10b2tvYnplcG1mZ3hmbnJycGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NzA4MjUsImV4cCI6MjA4NzE0NjgyNX0.Exsg7_fhXYruLC2ZMPWr4byU-7OrrcM_hInW0tJ98Gw'
 };
@@ -120,7 +120,7 @@ async function signInWithGoogleBackground() {
     const redirectUrl = chrome.identity.getRedirectURL();
 
     // Build Supabase OAuth URL
-    const authUrl = new URL(`${BE_CONFIG.SUPABASE_URL}/auth/v1/authorize`);
+    const authUrl = new URL(`${WM_CONFIG.SUPABASE_URL}/auth/v1/authorize`);
     authUrl.searchParams.set('provider', 'google');
     authUrl.searchParams.set('redirect_to', redirectUrl);
     authUrl.searchParams.set('scopes', 'email profile https://www.googleapis.com/auth/gmail.readonly');
@@ -158,10 +158,10 @@ async function signInWithGoogleBackground() {
     }
 
     // Fetch user info from Supabase
-    const userResponse = await fetch(`${BE_CONFIG.SUPABASE_URL}/auth/v1/user`, {
+    const userResponse = await fetch(`${WM_CONFIG.SUPABASE_URL}/auth/v1/user`, {
         headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'apikey': BE_CONFIG.SUPABASE_ANON_KEY
+            'apikey': WM_CONFIG.SUPABASE_ANON_KEY
         }
     });
 
@@ -178,7 +178,7 @@ async function signInWithGoogleBackground() {
 
     // Save session to storage
     await new Promise((resolve) => {
-        chrome.storage.local.set({ 'be_supabase_session': session }, resolve);
+        chrome.storage.local.set({ 'wm_supabase_session': session }, resolve);
     });
 
     return session;
@@ -190,22 +190,22 @@ async function signInWithGoogleBackground() {
 ========================================================= */
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-    if (!alarm.name.startsWith("be_reminder_")) return;
+    if (!alarm.name.startsWith("wm_reminder_")) return;
 
-    chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
-        const idx = be_reminders.findIndex(r => r.id === alarm.name);
+    chrome.storage.local.get("wm_reminders", ({ wm_reminders = [] }) => {
+        const idx = wm_reminders.findIndex(r => r.id === alarm.name);
         if (idx === -1) return;
 
-        const reminder = be_reminders[idx];
+        const reminder = wm_reminders[idx];
 
         // Mark as fired so it stays visible in the popup with urgent styling
-        be_reminders[idx] = { ...reminder, fired: true };
-        chrome.storage.local.set({ be_reminders });
+        wm_reminders[idx] = { ...reminder, fired: true };
+        chrome.storage.local.set({ wm_reminders });
 
         chrome.notifications.create(alarm.name, {
             type: "basic",
             iconUrl: "icons/icon48.png",
-            title: "BetterEmail: Follow-up Reminder",
+            title: "Wingman: Follow-up Reminder",
             message: `No reply yet on: "${reminder.subject}". Time to follow up!`,
             buttons: [{ title: "Open Gmail" }],
             requireInteraction: true
@@ -237,8 +237,8 @@ function reminderUrl(reminder) {
 
 chrome.notifications.onButtonClicked.addListener((notifId, btnIdx) => {
     if (btnIdx === 0) {
-        chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
-            const reminder = be_reminders.find(r => r.id === notifId);
+        chrome.storage.local.get("wm_reminders", ({ wm_reminders = [] }) => {
+            const reminder = wm_reminders.find(r => r.id === notifId);
             chrome.tabs.create({ url: reminderUrl(reminder) });
         });
     }
@@ -246,8 +246,8 @@ chrome.notifications.onButtonClicked.addListener((notifId, btnIdx) => {
 });
 
 chrome.notifications.onClicked.addListener((notifId) => {
-    chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
-        const reminder = be_reminders.find(r => r.id === notifId);
+    chrome.storage.local.get("wm_reminders", ({ wm_reminders = [] }) => {
+        const reminder = wm_reminders.find(r => r.id === notifId);
         chrome.tabs.create({ url: reminderUrl(reminder) });
     });
     chrome.notifications.clear(notifId);

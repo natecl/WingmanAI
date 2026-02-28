@@ -1,12 +1,12 @@
 /**
- * BetterEmail V2 — Supabase Auth Helper
+ * Wingman V2 — Supabase Auth Helper
  *
  * Uses chrome.identity.launchWebAuthFlow for Google OAuth,
  * then exchanges the token with Supabase Auth.
- * Session stored in chrome.storage.local (key: be_supabase_session).
+ * Session stored in chrome.storage.local (key: wm_supabase_session).
  */
 
-const AUTH_STORAGE_KEY = 'be_supabase_session';
+const AUTH_STORAGE_KEY = 'wm_supabase_session';
 
 /**
  * Get the current stored session (if any).
@@ -62,11 +62,11 @@ async function refreshAccessToken(refreshToken) {
     if (!refreshToken) return null;
 
     try {
-        const response = await fetch(`${BE_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        const response = await fetch(`${WM_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': BE_CONFIG.SUPABASE_ANON_KEY
+                'apikey': WM_CONFIG.SUPABASE_ANON_KEY
             },
             body: JSON.stringify({ refresh_token: refreshToken })
         });
@@ -89,7 +89,7 @@ async function refreshAccessToken(refreshToken) {
         await saveSession(session);
         return session;
     } catch (err) {
-        console.error('BetterEmail: Token refresh failed', err);
+        console.error('Wingman: Token refresh failed', err);
         await clearSession();
         return null;
     }
@@ -128,11 +128,11 @@ async function signOut() {
     // Attempt to sign out from Supabase (best-effort)
     if (session && session.access_token) {
         try {
-            await fetch(`${BE_CONFIG.SUPABASE_URL}/auth/v1/logout`, {
+            await fetch(`${WM_CONFIG.SUPABASE_URL}/auth/v1/logout`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`,
-                    'apikey': BE_CONFIG.SUPABASE_ANON_KEY
+                    'apikey': WM_CONFIG.SUPABASE_ANON_KEY
                 }
             });
         } catch {

@@ -1,17 +1,17 @@
-/* BetterEmail V2 - Copilot Sidebar Styles */
+/* Wingman V2 - Copilot Sidebar Styles */
 
 /* =========================================================
    CSS VARIABLES (shared palette)
 ========================================================= */
 
 :root {
-    --be-primary: #8e7dff;
-    --be-primary-dark: #7c69ff;
-    --be-bg: #0a0b10;
-    --be-card-bg: rgba(255, 255, 255, 0.05);
-    --be-text: #ffffff;
-    --be-text-dim: #a0a0b0;
-    --be-border: rgba(255, 255, 255, 0.1);
+    --wm-primary: #8e7dff;
+    --wm-primary-dark: #7c69ff;
+    --wm-bg: #0a0b10;
+    --wm-card-bg: rgba(255, 255, 255, 0.05);
+    --wm-text: #ffffff;
+    --wm-text-dim: #a0a0b0;
+    --wm-border: rgba(255, 255, 255, 0.1);
 }
 
 
@@ -19,8 +19,8 @@
    GMAIL LAYOUT SHIFT
 ========================================================= */
 
-html.be-sidebar-active,
-body.be-sidebar-active {
+html.wm-sidebar-active,
+body.wm-sidebar-active {
     /* Do NOT reduce width so Gmail still thinks it's on a large desktop screen. 
        Use padding-right so block-level content natively wraps before the sidebar. */
     width: 100% !important;
@@ -31,15 +31,15 @@ body.be-sidebar-active {
     box-sizing: border-box !important;
 }
 
-body.be-sidebar-active {
+body.wm-sidebar-active {
     transition: width 0.3s ease, max-width 0.3s ease, padding-right 0.3s ease;
 }
 
 /* Force Gmail inner app wrappers to squeeze instead of sliding under */
 /* In standard Gmail, .UI or div > .nH are the major structural flex boxes */
-body.be-sidebar-active>div.UI,
-body.be-sidebar-active>div:first-child,
-body.be-sidebar-active .nH.bkK {
+body.wm-sidebar-active>div.UI,
+body.wm-sidebar-active>div:first-child,
+body.wm-sidebar-active .nH.bkK {
     box-sizing: border-box !important;
     padding-right: 350px !important;
     width: 100vw !important;
@@ -47,9 +47,9 @@ body.be-sidebar-active .nH.bkK {
 }
 
 /* Push any fixed absolutely positioned UI panes inside Gmail that are pinned right */
-body.be-sidebar-active .aeF,
-body.be-sidebar-active .aKs,
-body.be-sidebar-active .TO {
+body.wm-sidebar-active .aeF,
+body.wm-sidebar-active .aKs,
+body.wm-sidebar-active .TO {
     box-sizing: border-box !important;
 }
 
@@ -58,30 +58,30 @@ body.be-sidebar-active .TO {
    SIDEBAR WRAPPER
 ========================================================= */
 
-#be-sidebar-wrapper {
+#wm-sidebar-wrapper {
     position: fixed;
     right: 0;
     top: 0;
     height: 100vh;
     width: 350px;
     z-index: 999999;
-    background: var(--be-bg);
-    border-left: 1px solid var(--be-border);
+    background: var(--wm-bg);
+    border-left: 1px solid var(--wm-border);
     box-shadow: -2px 0 12px rgba(0, 0, 0, 0.3);
     font-family: 'Inter', 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    color: var(--be-text);
+    color: var(--wm-text);
     transition: transform 0.3s ease;
 }
 
-#be-sidebar-wrapper.be-sidebar-collapsed {
+#wm-sidebar-wrapper.wm-sidebar-collapsed {
     transform: translateX(100%);
 }
 
 /* Toggle button (visible when sidebar is collapsed) */
-#be-sidebar-toggle {
+#wm-sidebar-toggle {
     position: fixed;
     right: 12px;
     bottom: 20px;
@@ -90,7 +90,7 @@ body.be-sidebar-active .TO {
     height: 44px;
     border-radius: 50%;
     border: none;
-    background: linear-gradient(135deg, var(--be-primary) 0%, var(--be-primary-dark) 100%);
+    background: linear-gradient(135deg, var(--wm-primary) 0%, var(--wm-primary-dark) 100%);
     color: white;
     cursor: pointer;
     display: none;
@@ -101,12 +101,12 @@ body.be-sidebar-active .TO {
     padding: 0;
 }
 
-#be-sidebar-toggle:hover {
+#wm-sidebar-toggle:hover {
     transform: scale(1.1);
     box-shadow: 0 6px 24px rgba(142, 125, 255, 0.5);
 }
 
-body:not(.be-sidebar-active) #be-sidebar-toggle {
+body:not(.wm-sidebar-active) #wm-sidebar-toggle {
     display: flex;
 }
 
@@ -115,63 +115,63 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR HEADER
 ========================================================= */
 
-.be-sidebar-header {
+.wm-sidebar-header {
     padding: 0.75rem 1rem;
     background: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--be-border);
+    border-bottom: 1px solid var(--wm-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
 }
 
-.be-sidebar-header-left {
+.wm-sidebar-header-left {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.be-sidebar-logo-dot {
+.wm-sidebar-logo-dot {
     width: 10px;
     height: 10px;
-    background: var(--be-primary);
+    background: var(--wm-primary);
     border-radius: 50%;
-    box-shadow: 0 0 12px var(--be-primary);
+    box-shadow: 0 0 12px var(--wm-primary);
 }
 
-.be-sidebar-header-left h1 {
+.wm-sidebar-header-left h1 {
     font-family: 'Outfit', 'Google Sans', sans-serif;
     font-weight: 600;
     font-size: 1rem;
     margin: 0;
-    color: var(--be-text);
+    color: var(--wm-text);
 }
 
-.be-sidebar-header-right {
+.wm-sidebar-header-right {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.be-sidebar-user-email {
+.wm-sidebar-user-email {
     font-size: 0.72rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     max-width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.be-sidebar-signout-btn,
-.be-sidebar-collapse-btn {
+.wm-sidebar-signout-btn,
+.wm-sidebar-collapse-btn {
     width: 28px;
     height: 28px;
     padding: 0;
     border-radius: 6px;
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     background: transparent;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -179,16 +179,16 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transition: all 0.15s ease;
 }
 
-.be-sidebar-signout-btn:hover {
+.wm-sidebar-signout-btn:hover {
     background: rgba(255, 107, 107, 0.12);
     border-color: #ff6b6b;
     color: #ff6b6b;
     transform: none;
 }
 
-.be-sidebar-collapse-btn:hover {
+.wm-sidebar-collapse-btn:hover {
     background: rgba(255, 255, 255, 0.08);
-    color: var(--be-text);
+    color: var(--wm-text);
     transform: none;
 }
 
@@ -197,40 +197,40 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR AUTH CARD
 ========================================================= */
 
-.be-sidebar-auth-card {
+.wm-sidebar-auth-card {
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 2.5rem 1.5rem;
     flex: 1;
-    animation: be-fadeIn 0.3s ease;
+    animation: wm-fadeIn 0.3s ease;
 }
 
-.be-sidebar-auth-inner {
+.wm-sidebar-auth-inner {
     text-align: center;
 }
 
-.be-sidebar-auth-inner h2 {
+.wm-sidebar-auth-inner h2 {
     font-family: 'Outfit', 'Google Sans', sans-serif;
     font-weight: 600;
     font-size: 1rem;
     margin-bottom: 0.5rem;
-    color: var(--be-text);
+    color: var(--wm-text);
 }
 
-.be-sidebar-auth-inner p {
+.wm-sidebar-auth-inner p {
     font-size: 0.82rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     margin-bottom: 1.2rem;
 }
 
-.be-sidebar-auth-btn {
+.wm-sidebar-auth-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     background: rgba(255, 255, 255, 0.08);
-    border: 1px solid var(--be-border);
-    color: var(--be-text);
+    border: 1px solid var(--wm-border);
+    color: var(--wm-text);
     padding: 10px 20px;
     border-radius: 10px;
     font-weight: 500;
@@ -240,7 +240,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     width: auto;
 }
 
-.be-sidebar-auth-btn:hover {
+.wm-sidebar-auth-btn:hover {
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.2);
     transform: none;
@@ -251,19 +251,19 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR TABS
 ========================================================= */
 
-.be-sidebar-tabs {
+.wm-sidebar-tabs {
     display: flex;
-    border-bottom: 1px solid var(--be-border);
+    border-bottom: 1px solid var(--wm-border);
     background: rgba(0, 0, 0, 0.2);
     flex-shrink: 0;
 }
 
-.be-sidebar-tab {
+.wm-sidebar-tab {
     flex: 1;
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     padding: 8px 4px;
     font-size: 0.78rem;
     font-weight: 500;
@@ -274,15 +274,15 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     white-space: nowrap;
 }
 
-.be-sidebar-tab:hover {
-    color: var(--be-text);
+.wm-sidebar-tab:hover {
+    color: var(--wm-text);
     background: rgba(255, 255, 255, 0.04);
     transform: none;
 }
 
-.be-sidebar-tab.be-sidebar-tab-active {
-    color: var(--be-primary);
-    border-bottom-color: var(--be-primary);
+.wm-sidebar-tab.wm-sidebar-tab-active {
+    color: var(--wm-primary);
+    border-bottom-color: var(--wm-primary);
 }
 
 
@@ -290,7 +290,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR TAB PANELS
 ========================================================= */
 
-.be-sidebar-panel {
+.wm-sidebar-panel {
     display: none;
     flex: 1;
     overflow-y: auto;
@@ -299,7 +299,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     gap: 1rem;
 }
 
-.be-sidebar-panel.be-sidebar-panel-active {
+.wm-sidebar-panel.wm-sidebar-panel-active {
     display: flex;
 }
 
@@ -308,16 +308,16 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR CARDS (shared)
 ========================================================= */
 
-.be-sidebar-card {
-    background: var(--be-card-bg);
-    border: 1px solid var(--be-border);
+.wm-sidebar-card {
+    background: var(--wm-card-bg);
+    border: 1px solid var(--wm-border);
     border-radius: 14px;
     padding: 1rem;
     backdrop-filter: blur(10px);
-    animation: be-fadeIn 0.3s ease;
+    animation: wm-fadeIn 0.3s ease;
 }
 
-@keyframes be-fadeIn {
+@keyframes wm-fadeIn {
     from {
         opacity: 0;
         transform: translateY(10px);
@@ -329,7 +329,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     }
 }
 
-@keyframes be-cardSlideIn {
+@keyframes wm-cardSlideIn {
     from {
         opacity: 0;
         transform: translateY(12px);
@@ -346,30 +346,30 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR: REMINDERS SECTION
 ========================================================= */
 
-.be-sidebar-reminders-header {
+.wm-sidebar-reminders-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 0.5rem;
 }
 
-.be-sidebar-reminders-title {
+.wm-sidebar-reminders-title {
     display: flex;
     align-items: center;
     gap: 7px;
     font-family: 'Outfit', 'Google Sans', sans-serif;
     font-weight: 600;
     font-size: 0.82rem;
-    color: var(--be-primary);
+    color: var(--wm-primary);
 }
 
-.be-sidebar-reminders-title svg {
-    stroke: var(--be-primary);
+.wm-sidebar-reminders-title svg {
+    stroke: var(--wm-primary);
     flex-shrink: 0;
 }
 
-.be-sidebar-reminders-badge {
-    background: var(--be-primary);
+.wm-sidebar-reminders-badge {
+    background: var(--wm-primary);
     color: white;
     font-size: 0.7rem;
     font-weight: 700;
@@ -382,50 +382,50 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     padding: 0 5px;
 }
 
-.be-sidebar-reminder-item {
+.wm-sidebar-reminder-item {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 8px 0;
-    border-bottom: 1px solid var(--be-border);
+    border-bottom: 1px solid var(--wm-border);
     transition: background 0.15s ease, opacity 0.25s ease, transform 0.25s ease;
     cursor: pointer;
 }
 
-.be-sidebar-reminder-item:last-child {
+.wm-sidebar-reminder-item:last-child {
     border-bottom: none;
 }
 
-.be-sidebar-reminder-item:hover {
+.wm-sidebar-reminder-item:hover {
     background: rgba(255, 255, 255, 0.04);
 }
 
-.be-sidebar-reminder-item.be-ri-removing {
+.wm-sidebar-reminder-item.wm-ri-removing {
     opacity: 0;
     transform: translateX(10px);
 }
 
-.be-sidebar-reminder-item.be-ri-fired {
+.wm-sidebar-reminder-item.wm-ri-fired {
     background: rgba(255, 107, 107, 0.07);
     border-left: 2px solid #ff6b6b;
     padding-left: 6px;
 }
 
-.be-sidebar-ri-dot {
+.wm-sidebar-ri-dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--be-primary);
+    background: var(--wm-primary);
     flex-shrink: 0;
-    box-shadow: 0 0 6px var(--be-primary);
+    box-shadow: 0 0 6px var(--wm-primary);
 }
 
-.be-sidebar-ri-dot.be-ri-dot-fired {
+.wm-sidebar-ri-dot.wm-ri-dot-fired {
     background: #ff6b6b;
-    animation: be-ri-pulse 1.6s ease-in-out infinite;
+    animation: wm-ri-pulse 1.6s ease-in-out infinite;
 }
 
-@keyframes be-ri-pulse {
+@keyframes wm-ri-pulse {
     0% {
         box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7);
     }
@@ -439,41 +439,41 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     }
 }
 
-.be-sidebar-ri-info {
+.wm-sidebar-ri-info {
     flex: 1;
     min-width: 0;
 }
 
-.be-sidebar-ri-subject {
+.wm-sidebar-ri-subject {
     font-size: 0.82rem;
     font-weight: 500;
-    color: var(--be-text);
+    color: var(--wm-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.be-sidebar-ri-due {
+.wm-sidebar-ri-due {
     font-size: 0.75rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     margin-top: 2px;
 }
 
-.be-sidebar-ri-due.be-ri-due-fired {
+.wm-sidebar-ri-due.wm-ri-due-fired {
     color: #ff6b6b;
     font-weight: 600;
 }
 
-.be-sidebar-ri-dismiss {
+.wm-sidebar-ri-dismiss {
     flex-shrink: 0;
     width: 22px;
     height: 22px;
     padding: 0;
     background: transparent;
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 4px;
     cursor: pointer;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     font-size: 11px;
     display: flex;
     align-items: center;
@@ -481,24 +481,24 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transition: all 0.15s ease;
 }
 
-.be-sidebar-ri-dismiss:hover {
+.wm-sidebar-ri-dismiss:hover {
     background: rgba(255, 107, 107, 0.12);
     border-color: #ff6b6b;
     color: #ff6b6b;
     transform: none;
 }
 
-.be-sidebar-ri-empty {
+.wm-sidebar-ri-empty {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 8px 0;
     font-size: 0.78rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     font-style: italic;
 }
 
-.be-sidebar-ri-empty svg {
+.wm-sidebar-ri-empty svg {
     stroke: #4caf50;
     flex-shrink: 0;
     opacity: 0.8;
@@ -509,35 +509,35 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR: COMPOSE ANALYZER SECTION
 ========================================================= */
 
-.be-sidebar-compose-section {
+.wm-sidebar-compose-section {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
 }
 
-.be-sidebar-section-title {
+.wm-sidebar-section-title {
     font-family: 'Outfit', 'Google Sans', sans-serif;
     font-weight: 600;
     font-size: 0.82rem;
-    color: var(--be-primary);
+    color: var(--wm-primary);
     display: flex;
     align-items: center;
     gap: 7px;
     margin-bottom: 0.25rem;
 }
 
-.be-sidebar-section-title svg {
-    stroke: var(--be-primary);
+.wm-sidebar-section-title svg {
+    stroke: var(--wm-primary);
     flex-shrink: 0;
 }
 
-.be-sidebar-context-input,
-.be-sidebar-textarea {
+.wm-sidebar-context-input,
+.wm-sidebar-textarea {
     width: 100%;
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 10px;
-    color: var(--be-text);
+    color: var(--wm-text);
     padding: 10px 12px;
     font-family: 'Inter', sans-serif;
     font-size: 0.85rem;
@@ -546,30 +546,30 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     box-sizing: border-box;
 }
 
-.be-sidebar-textarea {
+.wm-sidebar-textarea {
     min-height: 80px;
     resize: vertical;
     line-height: 1.5;
 }
 
-.be-sidebar-context-input:focus,
-.be-sidebar-textarea:focus {
-    border-color: var(--be-primary);
+.wm-sidebar-context-input:focus,
+.wm-sidebar-textarea:focus {
+    border-color: var(--wm-primary);
     box-shadow: 0 0 0 2px rgba(142, 125, 255, 0.2);
 }
 
-.be-sidebar-context-input::placeholder,
-.be-sidebar-textarea::placeholder {
-    color: var(--be-text-dim);
+.wm-sidebar-context-input::placeholder,
+.wm-sidebar-textarea::placeholder {
+    color: var(--wm-text-dim);
 }
 
-.be-sidebar-compose-actions {
+.wm-sidebar-compose-actions {
     display: flex;
     gap: 8px;
 }
 
-.be-sidebar-analyze-btn,
-.be-sidebar-draft-btn {
+.wm-sidebar-analyze-btn,
+.wm-sidebar-draft-btn {
     flex: 1;
     display: flex;
     align-items: center;
@@ -584,42 +584,42 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transition: all 0.2s ease;
 }
 
-.be-sidebar-analyze-btn {
-    background: var(--be-primary);
+.wm-sidebar-analyze-btn {
+    background: var(--wm-primary);
     color: white;
 }
 
-.be-sidebar-analyze-btn:hover {
-    background: var(--be-primary-dark);
+.wm-sidebar-analyze-btn:hover {
+    background: var(--wm-primary-dark);
     transform: translateY(-1px);
 }
 
-.be-sidebar-draft-btn {
+.wm-sidebar-draft-btn {
     background: rgba(255, 255, 255, 0.08);
-    border: 1px solid var(--be-border);
-    color: var(--be-text);
+    border: 1px solid var(--wm-border);
+    color: var(--wm-text);
 }
 
-.be-sidebar-draft-btn:hover {
+.wm-sidebar-draft-btn:hover {
     background: rgba(255, 255, 255, 0.12);
     transform: translateY(-1px);
 }
 
-.be-sidebar-analyze-btn:disabled,
-.be-sidebar-draft-btn:disabled {
+.wm-sidebar-analyze-btn:disabled,
+.wm-sidebar-draft-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
 }
 
-.be-sidebar-compose-hint {
+.wm-sidebar-compose-hint {
     font-size: 0.72rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     font-style: italic;
     text-align: center;
 }
 
-.be-sidebar-results-area {
+.wm-sidebar-results-area {
     margin-top: 0.5rem;
 }
 
@@ -628,12 +628,12 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR: LEAD FINDER SECTION
 ========================================================= */
 
-.be-sidebar-lead-input {
+.wm-sidebar-lead-input {
     width: 100%;
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 10px;
-    color: var(--be-text);
+    color: var(--wm-text);
     padding: 10px 12px;
     font-family: 'Inter', sans-serif;
     font-size: 0.85rem;
@@ -643,23 +643,23 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     margin-bottom: 0.75rem;
 }
 
-.be-sidebar-lead-input:focus {
-    border-color: var(--be-primary);
+.wm-sidebar-lead-input:focus {
+    border-color: var(--wm-primary);
     box-shadow: 0 0 0 2px rgba(142, 125, 255, 0.2);
 }
 
-.be-sidebar-lead-input::placeholder {
-    color: var(--be-text-dim);
+.wm-sidebar-lead-input::placeholder {
+    color: var(--wm-text-dim);
 }
 
-.be-sidebar-lead-btn {
+.wm-sidebar-lead-btn {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     width: 100%;
     padding: 10px 16px;
-    background: var(--be-primary);
+    background: var(--wm-primary);
     color: white;
     border: none;
     border-radius: 10px;
@@ -669,18 +669,18 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transition: all 0.2s ease;
 }
 
-.be-sidebar-lead-btn:hover {
-    background: var(--be-primary-dark);
+.wm-sidebar-lead-btn:hover {
+    background: var(--wm-primary-dark);
     transform: translateY(-1px);
 }
 
-.be-sidebar-lead-btn:disabled {
+.wm-sidebar-lead-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
 }
 
-.be-sidebar-lead-status {
+.wm-sidebar-lead-status {
     margin-top: 0.5rem;
     padding: 8px 12px;
     border-radius: 8px;
@@ -689,50 +689,50 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     display: none;
 }
 
-.be-sidebar-lead-status.be-status-loading {
+.wm-sidebar-lead-status.wm-status-loading {
     display: block;
     background: rgba(142, 125, 255, 0.12);
-    color: var(--be-primary);
+    color: var(--wm-primary);
 }
 
-.be-sidebar-lead-status.be-status-success {
+.wm-sidebar-lead-status.wm-status-success {
     display: block;
     background: rgba(76, 175, 80, 0.12);
     color: #4caf50;
 }
 
-.be-sidebar-lead-status.be-status-error {
+.wm-sidebar-lead-status.wm-status-error {
     display: block;
     background: rgba(255, 107, 107, 0.12);
     color: #ff6b6b;
 }
 
-.be-sidebar-lead-results {
+.wm-sidebar-lead-results {
     margin-top: 0.75rem;
 }
 
-.be-sidebar-lead-table {
+.wm-sidebar-lead-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.75rem;
 }
 
-.be-sidebar-lead-table thead th {
+.wm-sidebar-lead-table thead th {
     text-align: left;
     padding: 6px 8px;
     background: rgba(255, 255, 255, 0.05);
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     font-weight: 600;
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    border-bottom: 1px solid var(--be-border);
+    border-bottom: 1px solid var(--wm-border);
 }
 
-.be-sidebar-lead-table tbody td {
+.wm-sidebar-lead-table tbody td {
     padding: 6px 8px;
-    border-bottom: 1px solid var(--be-border);
-    color: var(--be-text);
+    border-bottom: 1px solid var(--wm-border);
+    color: var(--wm-text);
     vertical-align: top;
     max-width: 100px;
     overflow: hidden;
@@ -740,16 +740,16 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     white-space: nowrap;
 }
 
-.be-sidebar-lead-table tbody tr:hover {
+.wm-sidebar-lead-table tbody tr:hover {
     background: rgba(255, 255, 255, 0.04);
 }
 
-.be-sidebar-lead-table a {
-    color: var(--be-primary);
+.wm-sidebar-lead-table a {
+    color: var(--wm-primary);
     text-decoration: none;
 }
 
-.be-sidebar-lead-table a:hover {
+.wm-sidebar-lead-table a:hover {
     text-decoration: underline;
 }
 
@@ -758,12 +758,12 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR: SEARCH SECTION
 ========================================================= */
 
-.be-sidebar-search-input {
+.wm-sidebar-search-input {
     width: 100%;
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 10px;
-    color: var(--be-text);
+    color: var(--wm-text);
     padding: 10px 12px;
     font-family: 'Inter', sans-serif;
     font-size: 0.85rem;
@@ -773,29 +773,29 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     margin-bottom: 0.75rem;
 }
 
-.be-sidebar-search-input:focus {
-    border-color: var(--be-primary);
+.wm-sidebar-search-input:focus {
+    border-color: var(--wm-primary);
     box-shadow: 0 0 0 2px rgba(142, 125, 255, 0.2);
 }
 
-.be-sidebar-search-input::placeholder {
-    color: var(--be-text-dim);
+.wm-sidebar-search-input::placeholder {
+    color: var(--wm-text-dim);
 }
 
-.be-sidebar-search-actions {
+.wm-sidebar-search-actions {
     display: flex;
     gap: 8px;
     margin-bottom: 0.75rem;
 }
 
-.be-sidebar-search-btn {
+.wm-sidebar-search-btn {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     padding: 9px 12px;
-    background: var(--be-primary);
+    background: var(--wm-primary);
     color: white;
     border: none;
     border-radius: 10px;
@@ -805,24 +805,24 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transition: all 0.2s ease;
 }
 
-.be-sidebar-search-btn:hover {
-    background: var(--be-primary-dark);
+.wm-sidebar-search-btn:hover {
+    background: var(--wm-primary-dark);
     transform: translateY(-1px);
 }
 
-.be-sidebar-search-btn:disabled {
+.wm-sidebar-search-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
 }
 
-.be-sidebar-sync-btn {
+.wm-sidebar-sync-btn {
     display: inline-flex;
     align-items: center;
     gap: 5px;
     background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--be-border);
-    color: var(--be-text-dim);
+    border: 1px solid var(--wm-border);
+    color: var(--wm-text-dim);
     padding: 9px 14px;
     border-radius: 10px;
     font-size: 0.78rem;
@@ -832,60 +832,60 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     width: auto;
 }
 
-.be-sidebar-sync-btn:hover {
+.wm-sidebar-sync-btn:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: var(--be-text);
+    color: var(--wm-text);
     transform: none;
 }
 
-.be-sidebar-sync-btn:disabled {
+.wm-sidebar-sync-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-.be-sidebar-sync-status {
+.wm-sidebar-sync-status {
     font-size: 0.78rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     padding: 4px 0;
 }
 
-.be-sidebar-sync-status.be-sync-success {
+.wm-sidebar-sync-status.wm-sync-success {
     color: #4caf50;
 }
 
-.be-sidebar-sync-status.be-sync-error {
+.wm-sidebar-sync-status.wm-sync-error {
     color: #ff6b6b;
 }
 
-.be-sidebar-search-results {
+.wm-sidebar-search-results {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.be-sidebar-search-result-item {
+.wm-sidebar-search-result-item {
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 10px;
     padding: 10px 12px;
-    animation: be-cardSlideIn 0.3s ease both;
+    animation: wm-cardSlideIn 0.3s ease both;
     transition: border-color 0.15s ease;
 }
 
-.be-sidebar-search-result-item:hover {
+.wm-sidebar-search-result-item:hover {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
-.be-sidebar-search-result-header {
+.wm-sidebar-search-result-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 4px;
 }
 
-.be-sidebar-search-result-from {
+.wm-sidebar-search-result-from {
     font-size: 0.75rem;
-    color: var(--be-primary);
+    color: var(--wm-primary);
     font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -893,25 +893,25 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     max-width: 180px;
 }
 
-.be-sidebar-search-result-date {
+.wm-sidebar-search-result-date {
     font-size: 0.7rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     flex-shrink: 0;
 }
 
-.be-sidebar-search-result-subject {
+.wm-sidebar-search-result-subject {
     font-size: 0.82rem;
     font-weight: 500;
-    color: var(--be-text);
+    color: var(--wm-text);
     margin-bottom: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.be-sidebar-search-result-snippet {
+.wm-sidebar-search-result-snippet {
     font-size: 0.75rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -921,7 +921,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     margin-bottom: 6px;
 }
 
-.be-sidebar-search-result-open {
+.wm-sidebar-search-result-open {
     font-size: 0.7rem;
     color: #4285F4;
     text-decoration: none;
@@ -929,7 +929,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transition: opacity 0.15s ease;
 }
 
-.be-sidebar-search-result-open:hover {
+.wm-sidebar-search-result-open:hover {
     opacity: 0.8;
 }
 
@@ -938,23 +938,23 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR: SETTINGS SECTION
 ========================================================= */
 
-.be-sidebar-settings-title {
+.wm-sidebar-settings-title {
     font-family: 'Outfit', 'Google Sans', sans-serif;
     font-weight: 600;
     font-size: 0.95rem;
-    color: var(--be-primary);
+    color: var(--wm-primary);
     margin: 0 0 0.5rem 0;
 }
 
-.be-sidebar-settings-desc {
+.wm-sidebar-settings-desc {
     font-size: 0.8rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     line-height: 1.5;
     margin-bottom: 0.75rem;
 }
 
-.be-sidebar-upload-zone {
-    border: 2px dashed var(--be-border);
+.wm-sidebar-upload-zone {
+    border: 2px dashed var(--wm-border);
     border-radius: 10px;
     padding: 1.5rem 1rem;
     text-align: center;
@@ -967,71 +967,71 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     margin-bottom: 0.75rem;
 }
 
-.be-sidebar-upload-zone:hover,
-.be-sidebar-upload-drag {
-    border-color: var(--be-primary);
+.wm-sidebar-upload-zone:hover,
+.wm-sidebar-upload-drag {
+    border-color: var(--wm-primary);
     background: rgba(142, 125, 255, 0.06);
 }
 
-.be-sidebar-upload-icon {
+.wm-sidebar-upload-icon {
     font-size: 1.8rem;
 }
 
-.be-sidebar-upload-text {
+.wm-sidebar-upload-text {
     font-size: 0.85rem;
-    color: var(--be-text);
+    color: var(--wm-text);
 }
 
-.be-sidebar-upload-link {
-    color: var(--be-primary);
+.wm-sidebar-upload-link {
+    color: var(--wm-primary);
     text-decoration: underline;
     cursor: pointer;
 }
 
-.be-sidebar-upload-hint {
+.wm-sidebar-upload-hint {
     font-size: 0.75rem;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
 }
 
-.be-sidebar-file-chosen {
+.wm-sidebar-file-chosen {
     display: none;
     align-items: center;
     gap: 0.5rem;
     background: rgba(142, 125, 255, 0.08);
-    border: 1px solid var(--be-primary);
+    border: 1px solid var(--wm-primary);
     border-radius: 8px;
     padding: 0.5rem 0.75rem;
     font-size: 0.85rem;
     margin-bottom: 0.75rem;
 }
 
-.be-sidebar-file-icon {
+.wm-sidebar-file-icon {
     font-size: 1rem;
 }
 
-.be-sidebar-file-name {
+.wm-sidebar-file-name {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--be-text);
+    color: var(--wm-text);
 }
 
-.be-sidebar-file-remove {
+.wm-sidebar-file-remove {
     background: none;
     border: none;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     cursor: pointer;
     font-size: 0.85rem;
     padding: 0 2px;
 }
 
-.be-sidebar-file-remove:hover {
+.wm-sidebar-file-remove:hover {
     color: #ff6b6b;
     transform: none;
 }
 
-.be-sidebar-resume-on-file {
+.wm-sidebar-resume-on-file {
     font-size: 0.8rem;
     color: #4caf50;
     padding: 4px 0;
@@ -1039,9 +1039,9 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     margin-bottom: 0.5rem;
 }
 
-.be-sidebar-resume-save {
+.wm-sidebar-resume-save {
     width: 100%;
-    background: var(--be-primary);
+    background: var(--wm-primary);
     color: white;
     border: none;
     padding: 10px 24px;
@@ -1053,35 +1053,35 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     margin-bottom: 0.5rem;
 }
 
-.be-sidebar-resume-save:hover {
-    background: var(--be-primary-dark);
+.wm-sidebar-resume-save:hover {
+    background: var(--wm-primary-dark);
     transform: translateY(-1px);
 }
 
-.be-sidebar-resume-save:disabled {
+.wm-sidebar-resume-save:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
 }
 
-.be-sidebar-resume-status {
+.wm-sidebar-resume-status {
     font-size: 0.8rem;
     text-align: center;
     min-height: 1.2em;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
 }
 
-.be-sidebar-resume-status.be-status-ok {
+.wm-sidebar-resume-status.wm-status-ok {
     color: #4caf50;
 }
 
-.be-sidebar-resume-status.be-status-err {
+.wm-sidebar-resume-status.wm-status-err {
     color: #ff6b6b;
 }
 
-.be-sidebar-resume-summary {
+.wm-sidebar-resume-summary {
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 10px;
     padding: 0.75rem;
     display: none;
@@ -1090,17 +1090,17 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     margin-top: 0.5rem;
 }
 
-.be-sidebar-summary-label {
+.wm-sidebar-summary-label {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 
-.be-sidebar-summary-text {
+.wm-sidebar-summary-text {
     font-size: 0.8rem;
-    color: var(--be-text);
+    color: var(--wm-text);
     line-height: 1.55;
     white-space: pre-wrap;
     max-height: 180px;
@@ -1112,13 +1112,13 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR: LOCKED UI
 ========================================================= */
 
-.be-sidebar-locked {
+.wm-sidebar-locked {
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     padding: 24px 16px;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     font-size: 0.82rem;
     line-height: 1.5;
     font-style: italic;
@@ -1129,89 +1129,89 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR: RESULTS CARDS (analysis results)
 ========================================================= */
 
-.be-sidebar-results-grid {
+.wm-sidebar-results-grid {
     display: grid;
     gap: 10px;
 }
 
-.be-sidebar-result-card {
+.wm-sidebar-result-card {
     background: rgba(255, 255, 255, 0.03);
     border-radius: 10px;
     padding: 12px 14px;
-    border: 1px solid var(--be-border);
-    animation: be-cardSlideIn 0.4s ease both;
+    border: 1px solid var(--wm-border);
+    animation: wm-cardSlideIn 0.4s ease both;
     transition: all 0.2s ease;
 }
 
-.be-sidebar-result-card:hover {
+.wm-sidebar-result-card:hover {
     border-color: rgba(255, 255, 255, 0.15);
 }
 
-.be-sidebar-result-card.accent-blue {
+.wm-sidebar-result-card.accent-blue {
     border-left: 3px solid #4285f4;
 }
 
-.be-sidebar-result-card.accent-purple {
+.wm-sidebar-result-card.accent-purple {
     border-left: 3px solid #a142f4;
 }
 
-.be-sidebar-result-card.accent-cyan {
+.wm-sidebar-result-card.accent-cyan {
     border-left: 3px solid #12b5cb;
 }
 
-.be-sidebar-result-card.accent-yellow {
+.wm-sidebar-result-card.accent-yellow {
     border-left: 3px solid #f9ab00;
 }
 
-.be-sidebar-result-card.accent-green {
+.wm-sidebar-result-card.accent-green {
     border-left: 3px solid #34a853;
 }
 
-.be-sidebar-card-header {
+.wm-sidebar-card-header {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 6px;
 }
 
-.be-sidebar-card-icon {
+.wm-sidebar-card-icon {
     font-size: 14px;
     line-height: 1;
 }
 
-.be-sidebar-card-title {
+.wm-sidebar-card-title {
     font-size: 0.82rem;
     font-weight: 600;
-    color: var(--be-primary);
+    color: var(--wm-primary);
 }
 
-.be-sidebar-result-card.accent-blue .be-sidebar-card-title {
+.wm-sidebar-result-card.accent-blue .wm-sidebar-card-title {
     color: #8ab4f8;
 }
 
-.be-sidebar-result-card.accent-purple .be-sidebar-card-title {
+.wm-sidebar-result-card.accent-purple .wm-sidebar-card-title {
     color: #c084fc;
 }
 
-.be-sidebar-result-card.accent-cyan .be-sidebar-card-title {
+.wm-sidebar-result-card.accent-cyan .wm-sidebar-card-title {
     color: #12b5cb;
 }
 
-.be-sidebar-result-card.accent-yellow .be-sidebar-card-title {
+.wm-sidebar-result-card.accent-yellow .wm-sidebar-card-title {
     color: #f9ab00;
 }
 
-.be-sidebar-result-card.accent-green .be-sidebar-card-title {
+.wm-sidebar-result-card.accent-green .wm-sidebar-card-title {
     color: #34a853;
 }
 
-.be-sidebar-card-content {
+.wm-sidebar-card-content {
     font-size: 0.8rem;
     line-height: 1.6;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
 }
 
-.be-sidebar-close-results {
+.wm-sidebar-close-results {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1220,29 +1220,29 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     margin-top: 10px;
     padding: 8px;
     background: transparent;
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 8px;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.be-sidebar-close-results:hover {
+.wm-sidebar-close-results:hover {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.2);
     transform: none;
 }
 
-.be-sidebar-raw-result {
+.wm-sidebar-raw-result {
     background: rgba(255, 255, 255, 0.03);
     border-radius: 10px;
     padding: 12px;
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     font-size: 0.8rem;
     line-height: 1.6;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     white-space: pre-wrap;
 }
 
@@ -1251,42 +1251,42 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SIDEBAR: LOADING / ERROR / SPINNER
 ========================================================= */
 
-.be-sidebar-loading {
+.wm-sidebar-loading {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
     padding: 20px;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     font-size: 0.82rem;
 }
 
-.be-sidebar-loading-dots {
+.wm-sidebar-loading-dots {
     display: flex;
     gap: 4px;
 }
 
-.be-sidebar-dot {
+.wm-sidebar-dot {
     width: 7px;
     height: 7px;
-    background: var(--be-primary);
+    background: var(--wm-primary);
     border-radius: 50%;
-    animation: be-bounce 1.4s ease-in-out infinite both;
+    animation: wm-bounce 1.4s ease-in-out infinite both;
 }
 
-.be-sidebar-dot:nth-child(1) {
+.wm-sidebar-dot:nth-child(1) {
     animation-delay: -0.32s;
 }
 
-.be-sidebar-dot:nth-child(2) {
+.wm-sidebar-dot:nth-child(2) {
     animation-delay: -0.16s;
 }
 
-.be-sidebar-dot:nth-child(3) {
+.wm-sidebar-dot:nth-child(3) {
     animation-delay: 0s;
 }
 
-@keyframes be-bounce {
+@keyframes wm-bounce {
 
     0%,
     80%,
@@ -1301,7 +1301,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     }
 }
 
-.be-sidebar-error {
+.wm-sidebar-error {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1313,20 +1313,20 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     font-size: 0.8rem;
 }
 
-.be-sidebar-error svg {
+.wm-sidebar-error svg {
     flex-shrink: 0;
 }
 
-.be-sidebar-spinner {
+.wm-sidebar-spinner {
     width: 14px;
     height: 14px;
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-top-color: white;
     border-radius: 50%;
-    animation: be-spin 0.8s linear infinite;
+    animation: wm-spin 0.8s linear infinite;
 }
 
-@keyframes be-spin {
+@keyframes wm-spin {
     to {
         transform: rotate(360deg);
     }
@@ -1337,7 +1337,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    FOLLOW-UP REMINDER TOAST (stays — appears after sending)
 ========================================================= */
 
-.be-reminder-toast {
+.wm-reminder-toast {
     position: fixed;
     bottom: 24px;
     right: 374px;
@@ -1353,41 +1353,41 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transform: translateY(16px) scale(0.97);
     transition: opacity 0.28s ease, transform 0.28s ease;
     pointer-events: none;
-    color: var(--be-text);
+    color: var(--wm-text);
 }
 
-.be-reminder-toast.visible {
+.wm-reminder-toast.visible {
     opacity: 1;
     transform: translateY(0) scale(1);
     pointer-events: auto;
 }
 
-.be-reminder-header {
+.wm-reminder-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 12px 14px 8px;
 }
 
-.be-reminder-title {
+.wm-reminder-title {
     display: flex;
     align-items: center;
     gap: 7px;
     font-size: 13px;
     font-weight: 600;
-    color: var(--be-primary);
+    color: var(--wm-primary);
 }
 
-.be-reminder-title svg {
+.wm-reminder-title svg {
     flex-shrink: 0;
-    stroke: var(--be-primary);
+    stroke: var(--wm-primary);
 }
 
-.be-reminder-close {
+.wm-reminder-close {
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     font-size: 14px;
     line-height: 1;
     padding: 2px 4px;
@@ -1395,79 +1395,79 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transition: color 0.15s ease, background 0.15s ease;
 }
 
-.be-reminder-close:hover {
-    color: var(--be-text);
+.wm-reminder-close:hover {
+    color: var(--wm-text);
     background: rgba(255, 255, 255, 0.08);
     transform: none;
 }
 
-.be-reminder-body {
+.wm-reminder-body {
     padding: 0 14px 12px;
     font-size: 13px;
-    color: var(--be-text-dim);
+    color: var(--wm-text-dim);
     line-height: 1.5;
 }
 
-.be-reminder-body strong {
-    color: var(--be-text);
+.wm-reminder-body strong {
+    color: var(--wm-text);
     font-weight: 500;
 }
 
-.be-reminder-options {
+.wm-reminder-options {
     display: flex;
     gap: 6px;
     padding: 10px 14px 14px;
-    border-top: 1px solid var(--be-border);
+    border-top: 1px solid var(--wm-border);
     flex-wrap: wrap;
 }
 
-.be-reminder-btn {
+.wm-reminder-btn {
     flex: 1;
     min-width: 56px;
     padding: 7px 10px;
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
     font-size: 12px;
     font-weight: 500;
-    color: var(--be-primary);
+    color: var(--wm-primary);
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
 }
 
-.be-reminder-btn:hover {
+.wm-reminder-btn:hover {
     background: rgba(142, 125, 255, 0.15);
-    border-color: var(--be-primary);
+    border-color: var(--wm-primary);
     transform: none;
 }
 
-.be-reminder-skip {
-    color: var(--be-text-dim);
+.wm-reminder-skip {
+    color: var(--wm-text-dim);
     border-color: transparent;
 }
 
-.be-reminder-skip:hover {
+.wm-reminder-skip:hover {
     background: rgba(255, 255, 255, 0.06);
-    border-color: var(--be-border);
-    color: var(--be-text);
+    border-color: var(--wm-border);
+    color: var(--wm-text);
 }
 
-.be-reminder-custom {
+.wm-reminder-custom {
     display: flex;
     gap: 6px;
     align-items: center;
     width: 100%;
 }
 
-.be-custom-num {
+.wm-custom-num {
     width: 60px;
     padding: 7px 8px;
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
-    color: var(--be-text);
+    color: var(--wm-text);
     background: rgba(255, 255, 255, 0.05);
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -1475,46 +1475,46 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     appearance: textfield;
 }
 
-.be-custom-num::-webkit-outer-spin-button,
-.be-custom-num::-webkit-inner-spin-button {
+.wm-custom-num::-webkit-outer-spin-button,
+.wm-custom-num::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
 
-.be-custom-num:focus {
-    border-color: var(--be-primary);
+.wm-custom-num:focus {
+    border-color: var(--wm-primary);
     box-shadow: 0 0 0 2px rgba(142, 125, 255, 0.2);
 }
 
-.be-custom-num.be-custom-num-error {
+.wm-custom-num.wm-custom-num-error {
     border-color: #ff6b6b;
     box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
 }
 
-.be-custom-unit {
+.wm-custom-unit {
     flex: 1;
     padding: 7px 6px;
-    border: 1px solid var(--be-border);
+    border: 1px solid var(--wm-border);
     border-radius: 8px;
     font-size: 12px;
     font-weight: 500;
-    color: var(--be-text);
+    color: var(--wm-text);
     background: rgba(255, 255, 255, 0.05);
     outline: none;
     cursor: pointer;
     transition: border-color 0.15s ease;
 }
 
-.be-custom-unit:focus {
-    border-color: var(--be-primary);
+.wm-custom-unit:focus {
+    border-color: var(--wm-primary);
 }
 
-.be-custom-back {
+.wm-custom-back {
     width: 100%;
     margin-top: 4px;
 }
 
-.be-reminder-confirm {
+.wm-reminder-confirm {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1524,7 +1524,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     color: #4caf50;
 }
 
-.be-reminder-confirm svg {
+.wm-reminder-confirm svg {
     flex-shrink: 0;
     stroke: #4caf50;
 }
@@ -1534,7 +1534,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SEMANTIC SEARCH: GMAIL SEARCH BAR OVERLAY (kept)
 ========================================================= */
 
-.be-gmail-search-overlay {
+.wm-gmail-search-overlay {
     position: absolute;
     display: flex;
     align-items: center;
@@ -1551,24 +1551,24 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     border-radius: 24px;
 }
 
-.be-gmail-search-overlay.be-overlay-active {
+.wm-gmail-search-overlay.wm-overlay-active {
     opacity: 1;
     pointer-events: none;
 }
 
-@property --be-glow-angle {
+@property --wm-glow-angle {
     syntax: '<angle>';
     initial-value: 0deg;
     inherits: false;
 }
 
-.be-gmail-search-overlay::before {
+.wm-gmail-search-overlay::before {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: 24px;
     padding: 2.5px;
-    background: conic-gradient(from var(--be-glow-angle),
+    background: conic-gradient(from var(--wm-glow-angle),
             #8e7dff 0%,
             #c084fc 8%,
             #e9d5ff 14%,
@@ -1586,31 +1586,31 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
         linear-gradient(#fff 0 0) content-box,
         linear-gradient(#fff 0 0);
     mask-composite: exclude;
-    animation: be-glow-trail 3s linear infinite;
+    animation: wm-glow-trail 3s linear infinite;
     pointer-events: none;
     transition: opacity 0.3s ease;
 }
 
-@keyframes be-glow-trail {
+@keyframes wm-glow-trail {
     to {
-        --be-glow-angle: 360deg;
+        --wm-glow-angle: 360deg;
     }
 }
 
-.be-gmail-search-overlay.be-overlay-active::before {
+.wm-gmail-search-overlay.wm-overlay-active::before {
     opacity: 1;
 }
 
-.be-gmail-search-overlay.is-searching::before {
-    animation: be-glow-trail 1s linear infinite;
+.wm-gmail-search-overlay.is-searching::before {
+    animation: wm-glow-trail 1s linear infinite;
 }
 
-.be-search-locked .be-search-wrapper::before {
+.wm-search-locked .wm-search-wrapper::before {
     opacity: 0.2;
     animation: none;
 }
 
-.be-gmail-search-overlay.be-search-locked::before {
+.wm-gmail-search-overlay.wm-search-locked::before {
     opacity: 0.2;
     animation: none;
 }
@@ -1620,7 +1620,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SEMANTIC SEARCH TOGGLE BUTTON (kept)
 ========================================================= */
 
-.be-semantic-toggle-btn {
+.wm-semantic-toggle-btn {
     position: fixed;
     z-index: 9999;
     display: flex;
@@ -1638,25 +1638,25 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transition: all 0.25s ease;
 }
 
-.be-semantic-toggle-btn:hover {
+.wm-semantic-toggle-btn:hover {
     background: #f1f3f4;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     color: #202124;
     transform: scale(1.1);
 }
 
-.be-semantic-toggle-btn.be-toggle-active {
-    background: linear-gradient(135deg, var(--be-primary) 0%, var(--be-primary-dark) 100%);
+.wm-semantic-toggle-btn.wm-toggle-active {
+    background: linear-gradient(135deg, var(--wm-primary) 0%, var(--wm-primary-dark) 100%);
     color: white;
     box-shadow: 0 2px 10px rgba(142, 125, 255, 0.4);
 }
 
-.be-semantic-toggle-btn.be-toggle-active:hover {
+.wm-semantic-toggle-btn.wm-toggle-active:hover {
     box-shadow: 0 4px 16px rgba(142, 125, 255, 0.5);
     color: white;
 }
 
-.be-semantic-toggle-btn svg {
+.wm-semantic-toggle-btn svg {
     transition: stroke 0.2s ease;
 }
 
@@ -1665,7 +1665,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
    SEMANTIC SEARCH: RESULTS DROPDOWN (kept)
 ========================================================= */
 
-.be-gmail-search-results {
+.wm-gmail-search-results {
     position: fixed;
     max-height: 400px;
     width: 600px;
@@ -1678,7 +1678,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     pointer-events: auto;
 }
 
-.be-semantic-empty {
+.wm-semantic-empty {
     text-align: center;
     color: #9aa0a6;
     font-size: 13px;
@@ -1686,28 +1686,28 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     font-style: italic;
 }
 
-.be-semantic-result-item {
+.wm-semantic-result-item {
     background: #f8f9fa;
     border: 1px solid #e8eaed;
     border-radius: 10px;
     padding: 10px 12px;
     transition: border-color 0.15s ease;
-    animation: be-cardSlideIn 0.3s ease both;
+    animation: wm-cardSlideIn 0.3s ease both;
     margin-bottom: 6px;
 }
 
-.be-semantic-result-item:hover {
+.wm-semantic-result-item:hover {
     border-color: #dadce0;
 }
 
-.be-semantic-result-header {
+.wm-semantic-result-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 4px;
 }
 
-.be-semantic-result-from {
+.wm-semantic-result-from {
     font-size: 12px;
     color: #1a73e8;
     font-weight: 500;
@@ -1717,13 +1717,13 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     max-width: 220px;
 }
 
-.be-semantic-result-date {
+.wm-semantic-result-date {
     font-size: 11px;
     color: #9aa0a6;
     flex-shrink: 0;
 }
 
-.be-semantic-result-subject {
+.wm-semantic-result-subject {
     font-size: 13px;
     font-weight: 500;
     color: #202124;
@@ -1733,7 +1733,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     white-space: nowrap;
 }
 
-.be-semantic-result-snippet {
+.wm-semantic-result-snippet {
     font-size: 12px;
     color: #5f6368;
     line-height: 1.4;
@@ -1745,7 +1745,7 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     margin-bottom: 6px;
 }
 
-.be-semantic-result-open {
+.wm-semantic-result-open {
     font-size: 11px;
     color: #1a73e8;
     text-decoration: none;
@@ -1753,12 +1753,12 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     transition: opacity 0.15s ease;
 }
 
-.be-semantic-result-open:hover {
+.wm-semantic-result-open:hover {
     opacity: 0.8;
 }
 
 /* Search status indicators (used by semantic search dropdown) */
-.be-scraper-status {
+.wm-scraper-status {
     margin-top: 10px;
     padding: 8px 12px;
     border-radius: 8px;
@@ -1767,19 +1767,19 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
     display: none;
 }
 
-.be-scraper-status-loading {
+.wm-scraper-status-loading {
     display: block;
     background: #e8f0fe;
     color: #1a73e8;
 }
 
-.be-scraper-status-success {
+.wm-scraper-status-success {
     display: block;
     background: #e6f4ea;
     color: #1e8e3e;
 }
 
-.be-scraper-status-error {
+.wm-scraper-status-error {
     display: block;
     background: #fce8e8;
     color: #c5221f;
@@ -1790,10 +1790,10 @@ body:not(.be-sidebar-active) #be-sidebar-toggle {
 ========================================================= */
 
 /* Fix Gmail top header/search bar when sidebar is active */
-/* Header is usually fixed to top, width: 100%. If we add padding-right, it compresses the flex
+/*Header is usually fixed to top, width: 100%. If we add padding-right, it compresses the flex
    space without triggering JS window-width breakpoints that hide the search input.
    We explicitly target just the outer wrapper so nested elements don't get double-padded. */
-body.be-sidebar-active header#gb {
+body.wm-sidebar-active header#gb {
     padding-right: 350px !important;
     box-sizing: border-box !important;
     right: 0 !important;
@@ -1802,7 +1802,7 @@ body.be-sidebar-active header#gb {
 }
 
 /* Ensure the central search box flex container tries to use as much space as possible */
-body.be-sidebar-active header#gb [role="search"] {
+body.wm-sidebar-active header#gb [role="search"] {
     flex: 1 1 auto !important;
 }
 
@@ -1819,9 +1819,9 @@ body.be-sidebar-active header#gb [role="search"] {
 
 
 /* 3. Focus Glow Animation for the active Compose Window */
-body.be-sidebar-active div.nH.Hd[role="dialog"].be-compose-active {
+body.wm-sidebar-active div.nH.Hd[role="dialog"].wm-compose-active {
     box-shadow: 0 0 0 3px rgba(142, 125, 255, 0.4), 0 8px 24px rgba(0, 0, 0, 0.2) !important;
-    border: 1px solid var(--be-primary) !important;
+    border: 1px solid var(--wm-primary) !important;
     z-index: 100 !important;
     /* Ensure the glowing window stays on top of other drafts */
 }
@@ -1843,7 +1843,7 @@ body.be-sidebar-active div.nH.Hd[role="dialog"].be-compose-active {
 
 
 
-body.be-sidebar-active div.nH.Hd[role="dialog"].be-compose-active {
+body.wm-sidebar-active div.nH.Hd[role="dialog"].wm-compose-active {
     animation: composeGlowPulse 2.5s infinite;
 }
 

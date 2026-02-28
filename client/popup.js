@@ -3,7 +3,7 @@
  * Extension Popup Controller
  */
 
-const API_BASE = typeof BE_CONFIG !== 'undefined' ? BE_CONFIG.API_URL : "http://localhost:3000";
+const API_BASE = typeof WM_CONFIG !== 'undefined' ? WM_CONFIG.API_URL : "http://localhost:3000";
 const API_URL = API_BASE + "/analyze-email";
 
 const GMAIL_THREAD_ID_RE = /^[A-Za-z0-9_\-]{8,}$/;
@@ -171,8 +171,8 @@ function formatDueTime(dueTime) {
 
 function dismissReminder(id) {
     chrome.alarms.clear(id);
-    chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
-        chrome.storage.local.set({ be_reminders: be_reminders.filter(r => r.id !== id) });
+    chrome.storage.local.get("wm_reminders", ({ wm_reminders = [] }) => {
+        chrome.storage.local.set({ wm_reminders: wm_reminders.filter(r => r.id !== id) });
     });
 }
 
@@ -263,8 +263,8 @@ function renderReminders(reminders) {
 }
 
 // Load reminders whenever popup opens
-chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
-    renderReminders(be_reminders);
+chrome.storage.local.get("wm_reminders", ({ wm_reminders = [] }) => {
+    renderReminders(wm_reminders);
 });
 
 
@@ -273,12 +273,12 @@ chrome.storage.local.get("be_reminders", ({ be_reminders = [] }) => {
 ===================================================== */
 
 async function initAuthUI() {
-    const authCard = document.getElementById("be-auth-card");
-    const userBar = document.getElementById("be-user-bar");
-    const userEmail = document.getElementById("be-user-email");
+    const authCard = document.getElementById("wm-auth-card");
+    const userBar = document.getElementById("wm-user-bar");
+    const userEmail = document.getElementById("wm-user-email");
     const mainContent = document.querySelector(".main-content");
 
-    // Check if auth.js loaded (BE_CONFIG and getSession exist)
+    // Check if auth.js loaded (WM_CONFIG and getSession exist)
     if (typeof getSession !== 'function') {
         // auth.js not loaded — show main content, hide auth card
         if (authCard) authCard.style.display = "none";
@@ -288,7 +288,7 @@ async function initAuthUI() {
 
     const session = await getSession();
 
-    const tabs = document.getElementById("be-tabs");
+    const tabs = document.getElementById("wm-tabs");
 
     if (session && session.access_token) {
         // Signed in
@@ -306,14 +306,14 @@ async function initAuthUI() {
         if (authCard) authCard.style.display = "flex";
         if (mainContent) mainContent.style.display = "none";
         if (tabs) tabs.style.display = "none";
-        document.getElementById("be-tab-settings").style.display = "none";
+        document.getElementById("wm-tab-settings").style.display = "none";
         if (userBar) userBar.style.display = "none";
     }
 }
 
 // Sign-in handler
-document.getElementById("be-signin-btn")?.addEventListener("click", async () => {
-    const btn = document.getElementById("be-signin-btn");
+document.getElementById("wm-signin-btn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("wm-signin-btn");
     btn.disabled = true;
     btn.textContent = "Signing in...";
 
@@ -329,7 +329,7 @@ document.getElementById("be-signin-btn")?.addEventListener("click", async () => 
 });
 
 // Sign-out handler
-document.getElementById("be-signout-btn")?.addEventListener("click", async () => {
+document.getElementById("wm-signout-btn")?.addEventListener("click", async () => {
     await signOut();
     await initAuthUI();
 });
@@ -342,13 +342,13 @@ initAuthUI();
    TAB NAVIGATION
 ===================================================== */
 
-document.querySelectorAll('.be-tab').forEach(tab => {
+document.querySelectorAll('.wm-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-        document.querySelectorAll('.be-tab').forEach(t => t.classList.remove('be-tab-active'));
-        document.getElementById('be-tab-main').style.display = 'none';
-        document.getElementById('be-tab-settings').style.display = 'none';
-        tab.classList.add('be-tab-active');
-        document.getElementById(`be-tab-${tab.dataset.tab}`).style.display = 'flex';
+        document.querySelectorAll('.wm-tab').forEach(t => t.classList.remove('wm-tab-active'));
+        document.getElementById('wm-tab-main').style.display = 'none';
+        document.getElementById('wm-tab-settings').style.display = 'none';
+        tab.classList.add('wm-tab-active');
+        document.getElementById(`wm-tab-${tab.dataset.tab}`).style.display = 'flex';
     });
 });
 
@@ -364,9 +364,9 @@ async function loadResume(token) {
         });
         if (res.ok) {
             const data = await res.json();
-            const indicator = document.getElementById('be-resume-on-file');
-            const summary = document.getElementById('be-resume-summary');
-            const summaryText = document.getElementById('be-summary-text');
+            const indicator = document.getElementById('wm-resume-on-file');
+            const summary = document.getElementById('wm-resume-summary');
+            const summaryText = document.getElementById('wm-summary-text');
             if (indicator) indicator.style.display = data.resume_text ? 'block' : 'none';
             if (data.resume_summary) {
                 if (summaryText) summaryText.textContent = data.resume_summary;
@@ -381,24 +381,24 @@ async function loadResume(token) {
 }
 
 /* ---- PDF upload UI wiring ---- */
-const resumeFileInput = document.getElementById('be-resume-file');
-const uploadZone = document.getElementById('be-upload-zone');
-const fileChosen = document.getElementById('be-file-chosen');
-const fileNameDisplay = document.getElementById('be-file-name-display');
-const fileRemove = document.getElementById('be-file-remove');
-const resumeSave = document.getElementById('be-resume-save');
-const resumeStatus = document.getElementById('be-resume-status');
+const resumeFileInput = document.getElementById('wm-resume-file');
+const uploadZone = document.getElementById('wm-upload-zone');
+const fileChosen = document.getElementById('wm-file-chosen');
+const fileNameDisplay = document.getElementById('wm-file-name-display');
+const fileRemove = document.getElementById('wm-file-remove');
+const resumeSave = document.getElementById('wm-resume-save');
+const resumeStatus = document.getElementById('wm-resume-status');
 
-document.getElementById('be-upload-browse')?.addEventListener('click', (e) => {
+document.getElementById('wm-upload-browse')?.addEventListener('click', (e) => {
     e.stopPropagation();
     resumeFileInput?.click();
 });
 uploadZone?.addEventListener('click', () => resumeFileInput?.click());
-uploadZone?.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('be-upload-drag'); });
-uploadZone?.addEventListener('dragleave', () => uploadZone.classList.remove('be-upload-drag'));
+uploadZone?.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('wm-upload-drag'); });
+uploadZone?.addEventListener('dragleave', () => uploadZone.classList.remove('wm-upload-drag'));
 uploadZone?.addEventListener('drop', (e) => {
     e.preventDefault();
-    uploadZone.classList.remove('be-upload-drag');
+    uploadZone.classList.remove('wm-upload-drag');
     const file = e.dataTransfer?.files?.[0];
     if (file) setChosenFile(file);
 });
@@ -411,7 +411,7 @@ function setChosenFile(file) {
     if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
         if (resumeStatus) {
             resumeStatus.textContent = 'Please select a PDF file.';
-            resumeStatus.className = 'be-status-msg be-status-err';
+            resumeStatus.className = 'wm-status-msg wm-status-err';
         }
         return;
     }
@@ -419,7 +419,7 @@ function setChosenFile(file) {
     if (uploadZone) uploadZone.style.display = 'none';
     if (fileChosen) fileChosen.style.display = 'flex';
     if (resumeSave) resumeSave.disabled = false;
-    if (resumeStatus) { resumeStatus.textContent = ''; resumeStatus.className = 'be-status-msg'; }
+    if (resumeStatus) { resumeStatus.textContent = ''; resumeStatus.className = 'wm-status-msg'; }
 }
 
 fileRemove?.addEventListener('click', () => {
@@ -427,20 +427,20 @@ fileRemove?.addEventListener('click', () => {
     if (uploadZone) uploadZone.style.display = 'flex';
     if (fileChosen) fileChosen.style.display = 'none';
     if (resumeSave) resumeSave.disabled = true;
-    if (resumeStatus) { resumeStatus.textContent = ''; resumeStatus.className = 'be-status-msg'; }
+    if (resumeStatus) { resumeStatus.textContent = ''; resumeStatus.className = 'wm-status-msg'; }
 });
 
 resumeSave?.addEventListener('click', async () => {
     const file = resumeFileInput?.files?.[0];
     if (!file) return;
 
-    if (resumeStatus) { resumeStatus.textContent = 'Uploading...'; resumeStatus.className = 'be-status-msg'; }
+    if (resumeStatus) { resumeStatus.textContent = 'Uploading...'; resumeStatus.className = 'wm-status-msg'; }
     if (resumeSave) resumeSave.disabled = true;
 
     try {
         const token = typeof getAccessToken === 'function' ? await getAccessToken() : null;
         if (!token) {
-            if (resumeStatus) { resumeStatus.textContent = 'Not signed in.'; resumeStatus.className = 'be-status-msg be-status-err'; }
+            if (resumeStatus) { resumeStatus.textContent = 'Not signed in.'; resumeStatus.className = 'wm-status-msg wm-status-err'; }
             if (resumeSave) resumeSave.disabled = false;
             return;
         }
@@ -458,16 +458,16 @@ resumeSave?.addEventListener('click', async () => {
                 resumeStatus.textContent = data.summary
                     ? `Resume uploaded! AI summary generated. (${data.characters.toLocaleString()} chars)`
                     : `Resume saved (${data.characters.toLocaleString()} chars). AI summary unavailable — check server logs.`;
-                resumeStatus.className = 'be-status-msg be-status-ok';
+                resumeStatus.className = 'wm-status-msg wm-status-ok';
             }
             // Refresh the summary panel with the newly stored text
             const uploadToken = typeof getAccessToken === 'function' ? await getAccessToken() : token;
             if (uploadToken) await loadResume(uploadToken);
         } else {
-            if (resumeStatus) { resumeStatus.textContent = data.error || 'Upload failed.'; resumeStatus.className = 'be-status-msg be-status-err'; }
+            if (resumeStatus) { resumeStatus.textContent = data.error || 'Upload failed.'; resumeStatus.className = 'wm-status-msg wm-status-err'; }
         }
     } catch (err) {
-        if (resumeStatus) { resumeStatus.textContent = 'Could not reach server.'; resumeStatus.className = 'be-status-msg be-status-err'; }
+        if (resumeStatus) { resumeStatus.textContent = 'Could not reach server.'; resumeStatus.className = 'wm-status-msg wm-status-err'; }
     }
     if (resumeSave) resumeSave.disabled = false;
 });
@@ -505,7 +505,7 @@ form.addEventListener("submit", async (e) => {
     } catch (err) {
         showError(
             err.message ||
-            "Could not connect to server. Make sure BetterEmail backend is running."
+            "Could not connect to server. Make sure Wingman backend is running."
         );
     }
 

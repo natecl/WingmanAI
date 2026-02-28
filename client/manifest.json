@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "BetterEmail",
-  "description": "AI-powered email analyzer — get feedback on grammar, tone, clarity, and more.",
+  "name": "Wingman",
+  "description": "AI-powered email assistant — get feedback on grammar, tone, clarity, and more.",
   "version": "1.0.0",
   "permissions": [
     "storage",
