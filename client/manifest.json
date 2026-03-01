@@ -44,6 +44,7 @@
         "css/content-sidebar-reminders.css",
         "css/content-sidebar-analyzer.css",
         "css/content-sidebar-leads.css",
+        "css/content-sidebar-inbox.css",
         "css/content-sidebar-search.css",
         "css/content-sidebar-settings.css",
         "css/content-reminder-toast.css",

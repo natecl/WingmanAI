@@ -87,6 +87,7 @@ app.use('/user/resume', apiLimiter);
 app.use('/draft-email', apiLimiter);
 app.use('/draft-personalized-emails', apiLimiter);
 app.use('/leads/summarize', apiLimiter);
+app.use('/emails/summary', apiLimiter);
 
 // Multer for PDF resume uploads
 const resumeUpload = multer({
@@ -790,6 +791,88 @@ Write a cold email from the sender to the recipient. You MUST follow every rule 
     } catch (error) {
         console.error('[Draft personalized] Error:', error);
         res.status(500).json({ error: 'Failed to draft personalized emails' });
+    }
+});
+
+// Fetch recent emails with AI priority scoring for the sidebar inbox summary
+app.get('/emails/summary', requireAuth, async (req, res) => {
+    try {
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+        const { data: emails, error } = await supabase
+            .from('gmail_messages')
+            .select('gmail_message_id, thread_id, subject, from_name, from_email, internal_date, labels, body_text')
+            .eq('user_id', req.userId)
+            .order('internal_date', { ascending: false })
+            .limit(20);
+
+        if (error) return res.status(500).json({ error: 'Failed to fetch emails' });
+        if (!emails?.length) return res.json({ emails: [] });
+
+        // Compact representation for the AI batch scorer
+        const emailList = emails.map((e, i) =>
+            `${i + 1}. From: ${e.from_name || e.from_email} | Subject: "${e.subject || '(no subject'}"` +
+            `\n   Labels: ${(e.labels || []).join(', ')}` +
+            `\n   Preview: ${(e.body_text || '').substring(0, 120).replace(/\n/g, ' ')}`
+        ).join('\n\n');
+
+        const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${process.env.GEMINI_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'google/gemini-2.0-flash-001',
+                max_tokens: 700,
+                messages: [{
+                    role: 'user',
+                    content: `Score each email by priority. Return a JSON array only. Each item: {"index":N,"priority":"high|medium|low","reason":"max 6 words"}.
+
+Rules:
+- "high": email from a real person requiring action, reply, or decision — job offers, professor replies, recruiter outreach, urgent requests, anything that needs a response
+- "medium": email from a real human that is informational or low-urgency — classmates, friends, colleagues, any personal sender even if not urgent
+- "low": ONLY automated/machine-generated emails — newsletters, marketing, notifications, receipts, no-reply senders, mailing lists, calendar invites from services, system alerts
+
+CRITICAL: If the sender appears to be a real human being (not a service or automated system), it must be "high" or "medium" — NEVER "low". Reserve "low" exclusively for automated or bulk email.
+
+Emails:
+${emailList}
+
+Return ONLY the JSON array.`
+                }]
+            })
+        });
+
+        const aiData = await aiRes.json();
+        const raw = aiData.choices?.[0]?.message?.content || '[]';
+        const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+        let scores = [];
+        try { scores = JSON.parse(cleaned); } catch (_) {}
+
+        const result = emails.map((email, i) => {
+            const score = scores.find(s => s.index === i + 1) || { priority: 'low', reason: '' };
+            return {
+                gmail_message_id: email.gmail_message_id,
+                thread_id: email.thread_id,
+                subject: email.subject || '(no subject)',
+                from_name: email.from_name || email.from_email,
+                from_email: email.from_email,
+                internal_date: email.internal_date,
+                priority: score.priority || 'low',
+                reason: score.reason || ''
+            };
+        });
+
+        // High priority first, then medium, then low; date-sorted within each tier
+        const order = { high: 0, medium: 1, low: 2 };
+        result.sort((a, b) => {
+            const d = order[a.priority] - order[b.priority];
+            return d !== 0 ? d : new Date(b.internal_date) - new Date(a.internal_date);
+        });
+
+        res.json({ emails: result });
+    } catch (error) {
+        console.error('[Emails summary] Error:', error);
+        res.status(500).json({ error: 'Failed to load email summary' });
     }
 });
 

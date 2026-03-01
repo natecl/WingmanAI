@@ -95,6 +95,21 @@ function buildSidebarHTML() {
 
         <!-- Main Panel -->
         <div class="wm-sidebar-panel wm-sidebar-panel-active" id="wm-sidebar-panel-main">
+            <!-- Inbox Summary -->
+            <div class="wm-sidebar-card" id="wm-inbox-summary-card">
+                <div class="wm-sidebar-section-title">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+                        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+                    </svg>
+                    <span>Inbox</span>
+                    <span class="wm-inbox-priority-count" id="wm-inbox-priority-count" style="display:none;"></span>
+                </div>
+                <div id="wm-inbox-summary-list">
+                    <div class="wm-inbox-loading"><span class="wm-lead-summary-loading">Loading emails...</span></div>
+                </div>
+            </div>
+
             <!-- Reminders -->
             <div class="wm-sidebar-card">
                 <div class="wm-sidebar-reminders-header">
@@ -326,6 +341,8 @@ async function refreshSidebarAuth() {
         loadSidebarResume(session.access_token);
         // Auto-sync emails
         handleSidebarSync(true);
+        // Load inbox summary
+        loadEmailSummary(sidebar);
     } else {
         authCard.style.display = 'flex';
         tabs.style.display = 'none';
@@ -337,4 +354,89 @@ async function refreshSidebarAuth() {
 
     // Also refresh semantic search overlay auth
     refreshSemanticSearchAuth(authed);
+}
+
+
+/* =========================================================
+   INBOX EMAIL SUMMARY
+========================================================= */
+
+function formatRelativeTime(dateStr) {
+    const date = new Date(typeof dateStr === 'number' ? dateStr : dateStr);
+    if (isNaN(date.getTime())) return '';
+    const now = Date.now();
+    const diff = now - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+async function loadEmailSummary(sidebar) {
+    const listEl = sidebar.querySelector('#wm-inbox-summary-list');
+    const countEl = sidebar.querySelector('#wm-inbox-priority-count');
+    if (!listEl) return;
+
+    listEl.innerHTML = '<div class="wm-inbox-loading"><span class="wm-lead-summary-loading">Loading emails...</span></div>';
+
+    try {
+        const token = await getContentAccessToken();
+        const res = await apiFetch(`${getApiBase()}/emails/summary`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(res.data?.error || 'Request failed');
+        const emails = res.data?.emails || [];
+
+        if (!emails.length) {
+            listEl.innerHTML = '<div class="wm-inbox-empty">No emails found. Sync your inbox first.</div>';
+            return;
+        }
+
+        const highCount = emails.filter(e => e.priority === 'high').length;
+        if (highCount > 0) {
+            countEl.textContent = `${highCount} priority`;
+            countEl.style.display = 'inline';
+        } else {
+            countEl.style.display = 'none';
+        }
+
+        const high   = emails.filter(e => e.priority === 'high');
+        const medium = emails.filter(e => e.priority === 'medium');
+        const low    = emails.filter(e => e.priority === 'low');
+
+        function renderItem(email) {
+            const priorityClass = email.priority === 'high' ? 'wm-inbox-high'
+                : email.priority === 'medium' ? 'wm-inbox-medium'
+                : 'wm-inbox-low';
+            const from = email.from_name || email.from_email || 'Unknown';
+            const subject = email.subject || '(no subject)';
+            const time = formatRelativeTime(email.internal_date);
+            const reason = email.reason || '';
+            return `
+                <div class="wm-inbox-item ${priorityClass}">
+                    <div class="wm-inbox-item-header">
+                        <span class="wm-inbox-priority-dot"></span>
+                        <span class="wm-inbox-from" title="${escapeHTML(from)}">${escapeHTML(from)}</span>
+                        <span class="wm-inbox-time">${time}</span>
+                    </div>
+                    <div class="wm-inbox-subject">${escapeHTML(subject)}</div>
+                    ${reason ? `<div class="wm-inbox-reason">${escapeHTML(reason)}</div>` : ''}
+                </div>
+            `;
+        }
+
+        const sections = [];
+        if (high.length)   sections.push(`<div class="wm-inbox-tier-label wm-inbox-tier-high">Priority</div>${high.map(renderItem).join('')}`);
+        if (medium.length) sections.push(`<div class="wm-inbox-tier-label wm-inbox-tier-medium">Regular</div>${medium.map(renderItem).join('')}`);
+        if (low.length)    sections.push(`<div class="wm-inbox-tier-label wm-inbox-tier-low">Newsletters & Notifications</div>${low.map(renderItem).join('')}`);
+        listEl.innerHTML = sections.join('');
+    } catch (err) {
+        console.error('[Wingman] Inbox summary failed:', err);
+        listEl.innerHTML = '<div class="wm-inbox-empty">Could not load inbox summary.</div>';
+    }
 }
