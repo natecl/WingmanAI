@@ -86,6 +86,7 @@ app.use('/search', apiLimiter);
 app.use('/user/resume', apiLimiter);
 app.use('/draft-email', apiLimiter);
 app.use('/draft-personalized-emails', apiLimiter);
+app.use('/leads/summarize', apiLimiter);
 
 // Multer for PDF resume uploads
 const resumeUpload = multer({
@@ -789,6 +790,71 @@ Write a cold email from the sender to the recipient. You MUST follow every rule 
     } catch (error) {
         console.error('[Draft personalized] Error:', error);
         res.status(500).json({ error: 'Failed to draft personalized emails' });
+    }
+});
+
+// Generate brief AI research summaries for up to 3 leads (Gemini Flash)
+app.post('/leads/summarize', requireAuth, async (req, res) => {
+    try {
+        const { leads } = req.body;
+        if (!Array.isArray(leads) || leads.length === 0)
+            return res.status(400).json({ error: 'leads array is required' });
+
+        const topLeads = leads.slice(0, 3);
+        const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
+
+        const BLOCKED = ['facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'linkedin.com', 'youtube.com'];
+
+        const summaries = await Promise.allSettled(topLeads.map(async (lead) => {
+            const name = (lead.name || '').trim();
+            const detail = (lead.detail || '').trim();
+
+            // Gather context — profile page first, then a web search fallback
+            let context = detail;
+            try {
+                if (lead.sourceUrl) {
+                    const scraped = await firecrawl.scrapeUrl(lead.sourceUrl, { formats: ['markdown'] });
+                    if (scraped?.markdown) context = scraped.markdown.substring(0, 2500);
+                } else {
+                    const searchRes = await firecrawl.search(`"${name}" ${detail} research`, { limit: 4 });
+                    const url = searchRes?.data
+                        ?.map(r => r.url)
+                        .find(u => u && !BLOCKED.some(d => u.includes(d)));
+                    if (url) {
+                        const scraped = await firecrawl.scrapeUrl(url, { formats: ['markdown'] });
+                        if (scraped?.markdown) context = scraped.markdown.substring(0, 2500);
+                    }
+                }
+            } catch (_) { /* use whatever context we have */ }
+
+            const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.GEMINI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'google/gemini-2.0-flash-001',
+                    max_tokens: 120,
+                    messages: [{
+                        role: 'user',
+                        content: `Write a 1–2 sentence research summary for ${name || 'this person'} (${detail}). Focus on their specific research topics, methods, or notable projects — be concrete, not generic. Use the context below.\n\nContext:\n${context}\n\nOutput only the summary.`
+                    }]
+                })
+            });
+            const aiData = await aiRes.json();
+            const summary = aiData.choices?.[0]?.message?.content?.trim() || detail;
+            return { email: lead.email, summary };
+        }));
+
+        const result = summaries.map((s, i) =>
+            s.status === 'fulfilled' ? s.value : { email: topLeads[i].email, summary: topLeads[i].detail || '' }
+        );
+
+        res.json({ summaries: result });
+    } catch (error) {
+        console.error('[Leads summarize] Error:', error);
+        res.status(500).json({ error: 'Failed to summarize leads' });
     }
 });
 

@@ -158,11 +158,18 @@ async function scrapeEmails(firecrawl, urls) {
                     /([A-Z][a-z]+ (?:[A-Z]\. )?[A-Z][a-z]+)(?:,|\s*\n|\s*-|\s*\|)/
                 ];
 
+                // Words that indicate a research area or department, not a person name
+                const NOT_A_NAME = /\b(languages?|interfaces?|computing|systems?|sciences?|engineering|department|research|laboratory|networks?|intelligence|machine|learning|natural|language|processing|computer|vision|robotics|mathematics|physics|chemistry|biology|medicine|healthcare|artificial|neural|programming|software|hardware|databases?|algorithms?|theory|analysis|design|development|education|technology|applications?|security|cryptography|graphics|imaging|signals?|controls?|dynamics|structures?|materials?|management|economics|policy|ethics)\b/i;
+
                 for (const pattern of namePatterns) {
                     const nameMatch = surroundingText.match(pattern);
                     if (nameMatch) {
-                        name = nameMatch[1].trim();
-                        break;
+                        const candidate = nameMatch[1].trim();
+                        // Reject if it looks like a subject area rather than a person
+                        if (!NOT_A_NAME.test(candidate)) {
+                            name = candidate;
+                            break;
+                        }
                     }
                 }
 
