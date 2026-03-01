@@ -803,6 +803,10 @@ app.get('/emails/summary', requireAuth, async (req, res) => {
             .from('gmail_messages')
             .select('gmail_message_id, thread_id, subject, from_name, from_email, internal_date, labels, body_text')
             .eq('user_id', req.userId)
+            .contains('labels', ['INBOX'])
+            .not('labels', 'cs', '{"SENT"}')
+            .not('labels', 'cs', '{"DRAFT"}')
+            .neq('from_email', req.userEmail)
             .order('internal_date', { ascending: false })
             .limit(20);
 

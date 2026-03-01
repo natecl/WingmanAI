@@ -418,7 +418,7 @@ async function loadEmailSummary(sidebar) {
             const time = formatRelativeTime(email.internal_date);
             const reason = email.reason || '';
             return `
-                <div class="wm-inbox-item ${priorityClass}">
+                <div class="wm-inbox-item ${priorityClass} wm-inbox-item-link" data-thread-id="${escapeHTML(email.thread_id || '')}">
                     <div class="wm-inbox-item-header">
                         <span class="wm-inbox-priority-dot"></span>
                         <span class="wm-inbox-from" title="${escapeHTML(from)}">${escapeHTML(from)}</span>
@@ -430,11 +430,46 @@ async function loadEmailSummary(sidebar) {
             `;
         }
 
+        function renderCollapsible(id, labelClass, labelText, items) {
+            return `
+                <div class="wm-inbox-tier-label ${labelClass} wm-inbox-tier-collapsible" data-target="${id}">
+                    <svg class="wm-inbox-chevron" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                    ${labelText}
+                    <span class="wm-inbox-tier-count">${items.length}</span>
+                </div>
+                <div id="${id}" class="wm-inbox-collapsible-section" style="display:none;">
+                    ${items.map(renderItem).join('')}
+                </div>
+            `;
+        }
+
         const sections = [];
         if (high.length)   sections.push(`<div class="wm-inbox-tier-label wm-inbox-tier-high">Priority</div>${high.map(renderItem).join('')}`);
-        if (medium.length) sections.push(`<div class="wm-inbox-tier-label wm-inbox-tier-medium">Regular</div>${medium.map(renderItem).join('')}`);
-        if (low.length)    sections.push(`<div class="wm-inbox-tier-label wm-inbox-tier-low">Newsletters & Notifications</div>${low.map(renderItem).join('')}`);
+        if (medium.length) sections.push(renderCollapsible('wm-inbox-medium-items', 'wm-inbox-tier-medium', 'Regular', medium));
+        if (low.length)    sections.push(renderCollapsible('wm-inbox-low-items', 'wm-inbox-tier-low', 'Newsletters & Notifications', low));
         listEl.innerHTML = sections.join('');
+
+        // Wire collapse toggles
+        listEl.querySelectorAll('.wm-inbox-tier-collapsible').forEach(label => {
+            label.addEventListener('click', () => {
+                const target = listEl.querySelector(`#${label.dataset.target}`);
+                const isOpen = target.style.display !== 'none';
+                target.style.display = isOpen ? 'none' : 'block';
+                label.classList.toggle('wm-inbox-tier-open', !isOpen);
+            });
+        });
+
+        // Wire email item clicks — navigate to the Gmail thread
+        listEl.querySelectorAll('.wm-inbox-item-link').forEach(item => {
+            item.addEventListener('click', () => {
+                const threadId = item.dataset.threadId;
+                if (!threadId) return;
+                const base = window.location.origin + window.location.pathname;
+                window.location.href = base + '#inbox/' + threadId;
+            });
+        });
     } catch (err) {
         console.error('[Wingman] Inbox summary failed:', err);
         listEl.innerHTML = '<div class="wm-inbox-empty">Could not load inbox summary.</div>';

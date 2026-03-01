@@ -61,6 +61,46 @@
     opacity: 0.55;
 }
 
+/* Collapsible tier */
+.wm-inbox-tier-collapsible {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 5px;
+    padding: 2px 4px;
+    margin-left: -4px;
+    transition: opacity 0.15s ease;
+}
+
+.wm-inbox-tier-collapsible:hover {
+    opacity: 0.9 !important;
+}
+
+.wm-inbox-chevron {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    transform: rotate(0deg);
+}
+
+.wm-inbox-tier-open .wm-inbox-chevron {
+    transform: rotate(90deg);
+}
+
+.wm-inbox-tier-count {
+    margin-left: auto;
+    font-size: 0.62rem;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-weight: 600;
+}
+
+.wm-inbox-collapsible-section {
+    margin-top: 2px;
+}
+
 /* =========================================================
    INBOX ITEM ROWS
 ========================================================= */
@@ -72,6 +112,10 @@
     border-left: 3px solid transparent;
     background: rgba(255, 255, 255, 0.02);
     transition: background 0.15s ease;
+}
+
+.wm-inbox-item-link {
+    cursor: pointer;
 }
 
 .wm-inbox-item:last-child {
