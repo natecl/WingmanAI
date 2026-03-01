@@ -151,6 +151,65 @@ async function handleDraftLeadEmails(leads, btn) {
 
 
 /* =========================================================
+   LEAD RESEARCH SUMMARIES (background fetch after cards render)
+========================================================= */
+
+/**
+ * Fetch AI-generated research summaries for the top 3 recommended leads
+ * and inject them into the already-rendered cards.
+ */
+async function fetchLeadSummaries(leads, container) {
+    // Show a pulsing "Researching…" placeholder in each card
+    leads.forEach(lead => {
+        const card = [...container.querySelectorAll('.wm-lead-card')]
+            .find(c => c.dataset.email === lead.email);
+        if (!card) return;
+        let detailEl = card.querySelector('.wm-lead-card-detail');
+        if (!detailEl) {
+            detailEl = document.createElement('p');
+            detailEl.className = 'wm-lead-card-detail';
+            card.querySelector('.wm-lead-card-body').appendChild(detailEl);
+        }
+        detailEl.innerHTML = '<span class="wm-lead-summary-loading">Researching…</span>';
+    });
+
+    try {
+        const token = await getContentAccessToken();
+        if (!token) return;
+
+        const res = await apiFetch(`${getApiBase()}/leads/summarize`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ leads })
+        });
+
+        if (!res.ok) throw new Error('summarize failed');
+
+        const { summaries } = res.data;
+        summaries.forEach(s => {
+            const card = [...container.querySelectorAll('.wm-lead-card')]
+                .find(c => c.dataset.email === s.email);
+            if (!card) return;
+            const detailEl = card.querySelector('.wm-lead-card-detail');
+            if (detailEl) detailEl.textContent = s.summary;
+        });
+    } catch (err) {
+        // Graceful fallback — restore original detail text
+        leads.forEach(lead => {
+            const card = [...container.querySelectorAll('.wm-lead-card')]
+                .find(c => c.dataset.email === lead.email);
+            if (!card) return;
+            const detailEl = card.querySelector('.wm-lead-card-detail');
+            if (detailEl) detailEl.textContent = lead.detail || '';
+        });
+    }
+}
+
+
+/* =========================================================
    PER-ROW DRAFT BUTTON — PURPOSE MODAL
 ========================================================= */
 
@@ -311,33 +370,81 @@ function wireLeadFinder(sidebar) {
             statusEl.className = 'wm-sidebar-lead-status wm-status-success';
             statusEl.textContent = `${sourceLabel} — ${results.length} contact${results.length !== 1 ? 's' : ''} found`;
 
-            let html = '<table class="wm-sidebar-lead-table">';
-            html += '<thead><tr><th>Name</th><th>Email</th><th>Details</th></tr></thead>';
-            html += '<tbody>';
-            results.forEach(r => {
-                html += `<tr>
-                    <td class="wm-lead-name-cell">
-                        <span class="wm-lead-name-text">${escapeHTML(r.name || 'Unknown')}</span>
-                        <button class="wm-lead-row-draft-btn"
-                            data-email="${escapeHTML(r.email)}"
-                            data-name="${escapeHTML(r.name || '')}"
-                            data-detail="${escapeHTML(r.detail || '')}"
-                            data-sourceurl="${escapeHTML(r.sourceUrl || '')}"
-                            title="Draft a personalized email to ${escapeHTML(r.name || r.email)}">
-                            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                            </svg>
-                            Draft
+            const recommended = results.slice(0, 3);
+            const rest = results.slice(3);
+
+            const draftBtnSvg = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>`;
+
+            // ── Recommended cards (top 3) ────────────────────────────────────
+            let html = `<div class="wm-leads-recommended">
+                <div class="wm-leads-rec-header">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                    Top Picks
+                </div>`;
+
+            recommended.forEach(r => {
+                html += `<div class="wm-lead-card"
+                        data-email="${escapeHTML(r.email)}"
+                        data-name="${escapeHTML(r.name || '')}"
+                        data-detail="${escapeHTML(r.detail || '')}"
+                        data-sourceurl="${escapeHTML(r.sourceUrl || '')}">
+                        <div class="wm-lead-card-body">
+                            <div class="wm-lead-card-name">${escapeHTML(r.name || 'Unknown')}</div>
+                            <a class="wm-lead-card-email" href="mailto:${escapeHTML(r.email)}">${escapeHTML(r.email)}</a>
+                            ${r.detail ? `<p class="wm-lead-card-detail">${escapeHTML(r.detail)}</p>` : ''}
+                        </div>
+                        <button class="wm-lead-card-draft-btn" title="Draft email to ${escapeHTML(r.name || r.email)}">
+                            ${draftBtnSvg} Draft
                         </button>
-                    </td>
-                    <td><a href="mailto:${escapeHTML(r.email)}">${escapeHTML(r.email)}</a></td>
-                    <td>${escapeHTML(r.detail || '')}</td>
-                </tr>`;
+                    </div>`;
             });
-            html += '</tbody></table>';
+
+            html += `</div>`;
+
+            // ── Remaining results table (index 3+) ───────────────────────────
+            if (rest.length > 0) {
+                html += `<div class="wm-leads-rest-label">All results</div>`;
+                html += '<table class="wm-sidebar-lead-table"><thead><tr><th>Name</th><th>Email</th><th>Details</th></tr></thead><tbody>';
+                rest.forEach(r => {
+                    html += `<tr>
+                        <td class="wm-lead-name-cell">
+                            <span class="wm-lead-name-text">${escapeHTML(r.name || 'Unknown')}</span>
+                            <button class="wm-lead-row-draft-btn"
+                                data-email="${escapeHTML(r.email)}"
+                                data-name="${escapeHTML(r.name || '')}"
+                                data-detail="${escapeHTML(r.detail || '')}"
+                                data-sourceurl="${escapeHTML(r.sourceUrl || '')}"
+                                title="Draft email to ${escapeHTML(r.name || r.email)}">
+                                ${draftBtnSvg} Draft
+                            </button>
+                        </td>
+                        <td><a href="mailto:${escapeHTML(r.email)}">${escapeHTML(r.email)}</a></td>
+                        <td>${escapeHTML(r.detail || '')}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+            }
+
             resultsEl.innerHTML = html;
 
-            // Wire per-row draft buttons
+            // Wire card draft buttons (recommended section)
+            resultsEl.querySelectorAll('.wm-lead-card').forEach(card => {
+                card.querySelector('.wm-lead-card-draft-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    handleSingleLeadDraft({
+                        email: card.dataset.email,
+                        name: card.dataset.name,
+                        detail: card.dataset.detail,
+                        sourceUrl: card.dataset.sourceurl
+                    }, e.currentTarget);
+                });
+            });
+
+            // Wire table row draft buttons (rest section)
             resultsEl.querySelectorAll('.wm-lead-row-draft-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -350,20 +457,8 @@ function wireLeadFinder(sidebar) {
                 });
             });
 
-            // Add "Draft emails to top 3" button below the table
-            if (results.length > 0) {
-                const draftCount = Math.min(results.length, 3);
-                const draftBtn = document.createElement('button');
-                draftBtn.className = 'wm-leads-draft-btn';
-                draftBtn.innerHTML = `
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                    </svg>
-                    Draft emails to top ${draftCount}
-                `;
-                draftBtn.addEventListener('click', () => handleDraftLeadEmails(results.slice(0, 3), draftBtn));
-                resultsEl.appendChild(draftBtn);
-            }
+            // Fetch AI research summaries for recommended cards in the background
+            fetchLeadSummaries(recommended, resultsEl);
         } catch (err) {
             console.error('[BetterEmail] Lead finder error:', err);
             statusEl.className = 'wm-sidebar-lead-status wm-status-error';
