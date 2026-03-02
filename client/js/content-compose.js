@@ -184,10 +184,8 @@ function scanForComposeWindows() {
     // Find dialogs we haven't processed yet
     const newDialogs = composeDialogs.filter(dialog => !dialog.classList.contains('wm-focus-injected'));
 
-    // If new compose windows just opened, and there are already existing ones, minimize the older ones
+    // If new compose windows just opened, update focus glow
     if (newDialogs.length > 0) {
-        const isSidebarActive = document.body.classList.contains('wm-sidebar-active');
-
         // Remove glow from all previous windows
         document.querySelectorAll('.nH.Hd[role="dialog"].wm-compose-active').forEach(d => {
             d.classList.remove('wm-compose-active');
@@ -196,17 +194,8 @@ function scanForComposeWindows() {
         // Apply glow to the newest window
         newDialogs[newDialogs.length - 1].classList.add('wm-compose-active');
 
-        if (isSidebarActive && composeDialogs.length > 1) {
-            composeDialogs.forEach(dialog => {
-                // If it's an old dialog, natively minimize it
-                if (dialog.classList.contains('wm-focus-injected')) {
-                    const minimizeBtn = dialog.querySelector('[aria-label="Minimize"], [data-tooltip="Minimize"], [aria-label*="Minimize"], [data-tooltip*="Minimize"]');
-                    if (minimizeBtn) {
-                        minimizeBtn.click();
-                    }
-                }
-            });
-        }
+        // Let Gmail handle multiple compose window layout natively.
+        // Gmail will stack/tab older windows at the bottom automatically.
     }
 
     composeDialogs.forEach(dialog => {
