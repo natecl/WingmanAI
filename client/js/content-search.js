@@ -100,13 +100,65 @@ async function handleSidebarSync(silent) {
             return;
         }
 
-        syncStatus.textContent = `Synced ${response.data.processed} emails, ${response.data.queued} queued for indexing.`;
+        const queued = response.data.queued || 0;
+        syncStatus.textContent = `Synced ${response.data.processed} emails, ${queued} queued for indexing.`;
         syncStatus.className = 'wm-sidebar-sync-status wm-sync-success';
+
+        // Trigger background indexing if there are queued jobs
+        if (queued > 0) {
+            processIndexingQueue(session.access_token, syncStatus);
+        }
     } catch (err) {
         if (!silent) {
             syncStatus.textContent = `Sync failed: ${err.message}`;
             syncStatus.className = 'wm-sidebar-sync-status wm-sync-error';
         }
+    }
+}
+
+/**
+ * Process pending indexing jobs by calling the server endpoint in a loop.
+ * Each call processes up to 2 jobs (fits within Vercel Hobby 10s timeout).
+ * Runs silently in the background until all jobs are done.
+ */
+async function processIndexingQueue(token, statusEl) {
+    const MAX_ITERATIONS = 50; // safety limit
+    let totalProcessed = 0;
+
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+        try {
+            const res = await apiFetch(`${getApiBase()}/api/process-indexing-jobs`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!res.ok) break;
+
+            totalProcessed += res.data.processed || 0;
+            const remaining = res.data.remaining || 0;
+
+            if (statusEl) {
+                statusEl.textContent = `Indexing emails... ${totalProcessed} done, ${remaining} remaining`;
+                statusEl.className = 'wm-sidebar-sync-status';
+                statusEl.style.color = 'var(--wm-text-dim)';
+            }
+
+            if (remaining === 0) break;
+
+            // Small delay between batches to avoid hammering the server
+            await new Promise(r => setTimeout(r, 1000));
+        } catch (err) {
+            console.error('[Wingman] Indexing error:', err.message);
+            break;
+        }
+    }
+
+    if (statusEl && totalProcessed > 0) {
+        statusEl.textContent = `Indexing complete — ${totalProcessed} emails indexed.`;
+        statusEl.className = 'wm-sidebar-sync-status wm-sync-success';
     }
 }
 

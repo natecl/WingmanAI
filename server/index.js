@@ -14,6 +14,7 @@ const {
     scrapeEmails,
     upsertResults
 } = require('./services/scraperService');
+const { chunkText, buildSummaryText, embedTexts } = require('./services/embeddingService');
 const { requireAuth } = require('./middleware/auth');
 const {
     fetchMessageIds,
@@ -973,6 +974,126 @@ app.post('/leads/summarize', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('[Leads summarize] Error:', error);
         res.status(500).json({ error: 'Failed to summarize leads' });
+    }
+});
+
+// Process pending indexing jobs (serverless-compatible replacement for workers/indexer.js)
+// Called by: Vercel Cron (with CRON_SECRET) or client (with Supabase JWT)
+app.post('/api/process-indexing-jobs', async (req, res) => {
+    try {
+        // Auth: accept either CRON_SECRET or valid Supabase JWT
+        const authHeader = req.headers['authorization'] || '';
+        const cronSecret = process.env.CRON_SECRET;
+        const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+        if (!isCron) {
+            // Fall back to Supabase JWT auth
+            try {
+                await new Promise((resolve, reject) => {
+                    requireAuth(req, res, (err) => err ? reject(err) : resolve());
+                });
+            } catch {
+                return res.status(401).json({ error: 'Unauthorized' });
+            }
+        }
+
+        const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+
+        const embeddingApiKey = process.env.OPENAI_EMBEDDING_API_KEY;
+        const isEmbeddingOpenRouter = embeddingApiKey && embeddingApiKey.startsWith('sk-or-v1');
+        const openaiClient = new OpenAI({
+            apiKey: embeddingApiKey,
+            baseURL: isEmbeddingOpenRouter ? "https://openrouter.ai/api/v1" : undefined,
+            defaultHeaders: isEmbeddingOpenRouter ? {
+                "HTTP-Referer": process.env.VERCEL_URL || "http://localhost:3000",
+                "X-Title": "BetterEmail V2"
+            } : undefined
+        });
+
+        const BATCH_SIZE = 5; // 512d embeddings are fast enough for 5 jobs in 10s
+        let processed = 0, errors = 0;
+
+        for (let i = 0; i < BATCH_SIZE; i++) {
+            const { data, error } = await supabase.rpc('claim_indexing_job');
+            if (error || !data || data.length === 0) break;
+
+            const job = data[0];
+            const { job_id, job_message_id, job_user_id } = job;
+
+            try {
+                // Fetch the message
+                const { data: msg, error: msgError } = await supabase
+                    .from('gmail_messages')
+                    .select('*')
+                    .eq('id', job_message_id)
+                    .single();
+
+                if (msgError || !msg) throw new Error(`Message ${job_message_id} not found`);
+
+                // Build summary + chunks
+                const summaryText = buildSummaryText(msg);
+                const chunks = chunkText(msg.body_text || '');
+                const textsToEmbed = [summaryText, ...chunks].filter(t => t.trim());
+
+                if (textsToEmbed.length === 0) {
+                    await supabase.from('indexing_jobs')
+                        .update({ status: 'done', updated_at: new Date().toISOString() })
+                        .eq('id', job_id);
+                    processed++;
+                    continue;
+                }
+
+                // Embed all texts
+                const embeddings = await embedTexts(openaiClient, textsToEmbed);
+
+                // Delete old vectors, insert new ones
+                await supabase.from('gmail_message_vectors')
+                    .delete().eq('message_id', job_message_id);
+
+                const vectorRows = embeddings.map((embedding, idx) => ({
+                    message_id: job_message_id,
+                    user_id: job_user_id,
+                    chunk_type: idx === 0 ? 'summary' : 'chunk',
+                    chunk_index: idx === 0 ? 0 : idx - 1,
+                    chunk_text: textsToEmbed[idx],
+                    embedding: JSON.stringify(embedding)
+                }));
+
+                const { error: insertError } = await supabase
+                    .from('gmail_message_vectors').insert(vectorRows);
+
+                if (insertError) throw new Error(`Vector insert failed: ${insertError.message}`);
+
+                await supabase.from('indexing_jobs')
+                    .update({ status: 'done', updated_at: new Date().toISOString() })
+                    .eq('id', job_id);
+
+                processed++;
+                console.log(`[Indexing] Job ${job_id} done — ${vectorRows.length} vectors stored`);
+
+            } catch (err) {
+                console.error(`[Indexing] Job ${job_id} error:`, err.message);
+                await supabase.from('indexing_jobs')
+                    .update({ status: 'error', error_message: err.message.substring(0, 500), updated_at: new Date().toISOString() })
+                    .eq('id', job_id);
+                errors++;
+            }
+        }
+
+        // Count remaining pending jobs
+        const { count } = await supabase
+            .from('indexing_jobs')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'pending');
+
+        res.json({ processed, errors, remaining: count || 0 });
+
+    } catch (error) {
+        console.error('[Indexing] Endpoint error:', error);
+        res.status(500).json({ error: 'Failed to process indexing jobs' });
     }
 });
 

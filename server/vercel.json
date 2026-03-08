@@ -11,5 +11,11 @@
       "src": "/(.*)",
       "dest": "index.js"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/process-indexing-jobs",
+      "schedule": "0 0 * * *"
+    }
   ]
 }

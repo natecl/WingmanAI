@@ -98,8 +98,9 @@ function buildSummaryText(msg) {
 }
 
 /**
- * Batch embed texts using OpenAI text-embedding-3-small (1536 dimensions).
- * Returns array of embedding vectors.
+ * Batch embed texts using OpenAI text-embedding-3-small (512 dimensions).
+ * 512d is 3x faster for storage/search with minimal quality loss
+ * (model uses Matryoshka Representation Learning for native dim reduction).
  */
 async function embedTexts(openai, texts) {
     if (!texts || texts.length === 0) return [];
@@ -107,7 +108,7 @@ async function embedTexts(openai, texts) {
     const response = await openai.embeddings.create({
         model: 'text-embedding-3-small',
         input: texts,
-        dimensions: 1536
+        dimensions: 512
     });
 
     return response.data.map(d => d.embedding);

@@ -139,7 +139,7 @@ describe('embedTexts', () => {
         expect(mockOpenai.embeddings.create).toHaveBeenCalledWith({
             model: 'text-embedding-3-small',
             input: ['text 1', 'text 2'],
-            dimensions: 1536
+            dimensions: 512
         });
     });
 

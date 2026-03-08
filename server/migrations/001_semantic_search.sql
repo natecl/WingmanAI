@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS gmail_message_vectors (
     chunk_type TEXT NOT NULL CHECK (chunk_type IN ('summary', 'chunk')),
     chunk_index INT NOT NULL DEFAULT 0,
     chunk_text TEXT NOT NULL,
-    embedding VECTOR(1536) NOT NULL,
+    embedding VECTOR(512) NOT NULL,    -- reduced from 1536 via 002_reduce_vector_dimensions.sql
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -125,7 +125,7 @@ $$;
 -- Vector similarity search with metadata filters
 CREATE OR REPLACE FUNCTION search_email_vectors(
     p_user_id UUID,
-    p_query_vector VECTOR(1536),
+    p_query_vector VECTOR(512),
     p_match_count INT DEFAULT 20,
     p_from_email TEXT DEFAULT NULL,
     p_after TIMESTAMPTZ DEFAULT NULL,
