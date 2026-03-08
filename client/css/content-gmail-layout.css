@@ -71,7 +71,16 @@ body.wm-sidebar-active header#gb [role="search"] {
 /* 2. Position the compose windows handled by JS (observeComposeWindows) */
 
 
-/* 3. Fullscreen compose window — JS adds .wm-fullscreen-compose and sets inline styles */
+/* 3. Fullscreen compose window — JS adds .wm-fullscreen-compose and sets
+      inline width/left/right overrides. Height, top, and position are NOT
+      overridden so Gmail's internal toolbar/buttons reflow naturally. */
+
+/* Constrain the fullscreen dialog box — Gmail's internal flex layout
+   handles toolbar/button positioning natively within these bounds */
+body.wm-sidebar-active div.nH.Hd[role="dialog"].wm-fullscreen-compose {
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
 
 /* 4. Focus Glow Animation for the active Compose Window */
 body.wm-sidebar-active div.nH.Hd[role="dialog"].wm-compose-active {

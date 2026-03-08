@@ -194,8 +194,11 @@ function scanForComposeWindows() {
         // Apply glow to the newest window
         newDialogs[newDialogs.length - 1].classList.add('wm-compose-active');
 
-        // Let Gmail handle multiple compose window layout natively.
-        // Gmail will stack/tab older windows at the bottom automatically.
+        // Nudge Gmail to recalculate compose window layout so it accounts
+        // for our sidebar offset. Without this, borders/toolbar may not
+        // render until the user clicks into the window.
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 400);
     }
 
     composeDialogs.forEach(dialog => {
@@ -342,25 +345,23 @@ function observeComposeWindows() {
         composeDialogs.forEach(dialog => {
             const removeOverrides = () => {
                 dialog.classList.remove('wm-fullscreen-compose');
+                dialog.style.removeProperty('position');
                 dialog.style.removeProperty('left');
                 dialog.style.removeProperty('top');
+                dialog.style.removeProperty('bottom');
                 dialog.style.removeProperty('width');
-                dialog.style.removeProperty('height');
                 dialog.style.removeProperty('max-width');
-                dialog.style.removeProperty('right');
-                dialog.style.removeProperty('position');
             };
 
             if (!isSidebarActive) {
-                // Sidebar is off — remove all our overrides so Gmail works natively
                 if (dialog.classList.contains('wm-fullscreen-compose')) {
                     removeOverrides();
                 }
                 return;
             }
 
-            // If we previously applied overrides, temporarily strip them
-            // to read Gmail's native layout. Synchronous reflow won't cause flicker.
+            // Temporarily strip our overrides to read Gmail's native layout.
+            // Synchronous reflow before repaint — no flicker.
             const hadOverrides = dialog.classList.contains('wm-fullscreen-compose');
             if (hadOverrides) {
                 removeOverrides();
@@ -368,25 +369,37 @@ function observeComposeWindows() {
 
             const rect = dialog.getBoundingClientRect();
 
-            // If the dialog's right edge bleeds into the sidebar, resize it
+            // If the dialog bleeds into the sidebar zone, constrain it.
+            // position: fixed is required for left/width to override Gmail's positioning.
+            // Use top + bottom instead of explicit height so Gmail's internal
+            // toolbar/buttons still reflow naturally within the container.
             if (rect.right > maxRight && rect.width > 500) {
                 dialog.classList.add('wm-fullscreen-compose');
-
-                // Add padding so it doesn't touch the edges
+                // Center the compose between the left viewport edge and the sidebar
                 const PADDING = 24;
                 const availableWidth = maxRight;
-                const newLeft = PADDING;
                 const newWidth = availableWidth - (PADDING * 2);
-
+                const newLeft = PADDING;
                 dialog.style.setProperty('position', 'fixed', 'important');
                 dialog.style.setProperty('left', newLeft + 'px', 'important');
                 dialog.style.setProperty('top', rect.top + 'px', 'important');
+                dialog.style.setProperty('bottom', '0', 'important');
                 dialog.style.setProperty('width', newWidth + 'px', 'important');
                 dialog.style.setProperty('max-width', newWidth + 'px', 'important');
-                dialog.style.setProperty('height', rect.height + 'px', 'important');
-                dialog.style.removeProperty('right');
+
+                // If we just applied overrides for the first time, nudge Gmail
+                // to reflow the compose internals (toolbar, buttons, etc.)
+                // by programmatically focusing the subject then the body.
+                if (!hadOverrides) {
+                    setTimeout(() => {
+                        const subj = dialog.querySelector('input[name="subjectbox"]');
+                        const body = dialog.querySelector('div[contenteditable="true"]');
+                        if (subj) { subj.focus(); subj.click(); }
+                        setTimeout(() => { if (body) { body.focus(); body.click(); } }, 50);
+                    }, 100);
+                }
             }
-            // else: Gmail minimized or restored to normal — overrides stay removed
+            // else: Gmail minimized or normal — overrides stay removed
         });
     }, 300);
 }

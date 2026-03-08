@@ -323,3 +323,91 @@
         transform: rotate(360deg);
     }
 }
+
+/* =========================================================
+   SIDEBAR: INLINE DRAFT PROMPT PANEL
+========================================================= */
+
+.wm-draft-prompt-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    background: rgba(142, 125, 255, 0.06);
+    border: 1px solid var(--wm-border);
+    border-radius: 12px;
+    animation: wm-cardSlideIn 0.25s ease both;
+}
+
+.wm-draft-prompt-label {
+    font-family: 'Outfit', 'Google Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--wm-text);
+}
+
+.wm-draft-prompt-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--wm-border);
+    border-radius: 8px;
+    color: var(--wm-text);
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.wm-draft-prompt-input:focus {
+    border-color: var(--wm-primary);
+    box-shadow: 0 0 0 2px rgba(142, 125, 255, 0.2);
+}
+
+.wm-draft-prompt-input::placeholder {
+    color: var(--wm-text-dim);
+}
+
+.wm-draft-prompt-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.wm-draft-prompt-cancel {
+    padding: 7px 14px;
+    background: transparent;
+    border: 1px solid var(--wm-border);
+    border-radius: 8px;
+    color: var(--wm-text-dim);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wm-draft-prompt-cancel:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--wm-text);
+}
+
+.wm-draft-prompt-submit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: var(--wm-primary);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wm-draft-prompt-submit:hover {
+    background: var(--wm-primary-dark);
+    transform: translateY(-1px);
+}
