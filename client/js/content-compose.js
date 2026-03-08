@@ -340,19 +340,30 @@ function observeComposeWindows() {
         const maxRight = window.innerWidth - SIDEBAR_WIDTH;
 
         composeDialogs.forEach(dialog => {
+            const removeOverrides = () => {
+                dialog.classList.remove('wm-fullscreen-compose');
+                dialog.style.removeProperty('left');
+                dialog.style.removeProperty('top');
+                dialog.style.removeProperty('width');
+                dialog.style.removeProperty('height');
+                dialog.style.removeProperty('max-width');
+                dialog.style.removeProperty('right');
+                dialog.style.removeProperty('position');
+            };
+
             if (!isSidebarActive) {
                 // Sidebar is off — remove all our overrides so Gmail works natively
                 if (dialog.classList.contains('wm-fullscreen-compose')) {
-                    dialog.classList.remove('wm-fullscreen-compose');
-                    dialog.style.removeProperty('left');
-                    dialog.style.removeProperty('top');
-                    dialog.style.removeProperty('width');
-                    dialog.style.removeProperty('height');
-                    dialog.style.removeProperty('max-width');
-                    dialog.style.removeProperty('right');
-                    dialog.style.removeProperty('position');
+                    removeOverrides();
                 }
                 return;
+            }
+
+            // If we previously applied overrides, temporarily strip them
+            // to read Gmail's native layout. Synchronous reflow won't cause flicker.
+            const hadOverrides = dialog.classList.contains('wm-fullscreen-compose');
+            if (hadOverrides) {
+                removeOverrides();
             }
 
             const rect = dialog.getBoundingClientRect();
@@ -375,6 +386,7 @@ function observeComposeWindows() {
                 dialog.style.setProperty('height', rect.height + 'px', 'important');
                 dialog.style.removeProperty('right');
             }
+            // else: Gmail minimized or restored to normal — overrides stay removed
         });
     }, 300);
 }
