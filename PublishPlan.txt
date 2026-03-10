@@ -1,11 +1,11 @@
 # Wingman Chrome Extension - Publishing Checklist
 
 ## 1. Host your backend
-- [ ] Put your server on a hosting provider (e.g., Vercel, Railway, Render, Fly, or Cloudflare)
-- [ ] Make sure the server is reachable over HTTPS
+- [x] Put your server on a hosting provider (e.g., Vercel, Railway, Render, Fly, or Cloudflare)
+- [x] Make sure the server is reachable over HTTPS
 
 ## 2. Update the extension for production
-- [ ] Replace `localhost` URLs with your production API URL in the extension code
+- [x] Replace `localhost` URLs with your production API URL in the extension code
 - [ ] Check OAuth redirect URIs (if using Google login)
 - [ ] Verify permissions in `manifest.json` are only the ones you actually need
 - [ ] Make sure content scripts and host permissions match the sites Wingman uses
