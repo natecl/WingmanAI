@@ -705,6 +705,9 @@ async function loadEmailSummary(sidebar) {
             });
         });
 
+        // Highlight priority contact emails using user-defined colors
+        applyContactPriorityFromEmails(emails);
+
         function renderItem(email) {
             const priorityClass = email.priority === 'high' ? 'wm-inbox-high'
                 : email.priority === 'medium' ? 'wm-inbox-medium'

@@ -34,9 +34,26 @@ function savePriorities() {
 
 /* =========================================================
    GMAIL ROW HIGHLIGHTING
-   Uses the same absolute-marker-in-first-td pattern as _wmHighlightRow.
-   Matches by scanning the sender cell text content of each row.
+   Driven by email data from the inbox API (same thread-ID approach
+   as the existing _wmHighlightRow system).
 ========================================================= */
+
+// threadId → color, populated from inbox email data
+const _contactPriorityThreads = new Map();
+
+function _highlightContactRow(row, color) {
+    if (!row) return;
+    row.setAttribute('data-wm-contact-priority', '1');
+    row.style.setProperty('box-shadow', `inset 4px 0 0 ${color}`, 'important');
+    const firstTd = row.querySelector('td');
+    if (firstTd && !firstTd.querySelector('.wm-contact-priority-marker')) {
+        firstTd.style.setProperty('position', 'relative', 'important');
+        const marker = document.createElement('div');
+        marker.className = 'wm-contact-priority-marker';
+        marker.style.cssText = `position:absolute;left:0;top:0;bottom:0;width:4px;background:${color};z-index:10;pointer-events:none`;
+        firstTd.prepend(marker);
+    }
+}
 
 function _clearContactHighlights() {
     document.querySelectorAll('[data-wm-contact-priority]').forEach(row => {
@@ -45,71 +62,51 @@ function _clearContactHighlights() {
         const marker = row.querySelector('.wm-contact-priority-marker');
         if (marker) marker.remove();
         const firstTd = row.querySelector('td');
-        if (firstTd && !row.hasAttribute('data-wm-priority')) {
-            firstTd.style.removeProperty('position');
-        }
+        if (firstTd) firstTd.style.removeProperty('position');
     });
 }
 
-function _getSenderText(row) {
-    // Gmail puts sender info in a span with an [email] attribute when available.
-    // Fall back to the full row text so we always get something.
-    const senderSpan = row.querySelector('span[email]');
-    if (senderSpan) {
-        return (senderSpan.getAttribute('email') + ' ' + senderSpan.textContent).toLowerCase();
-    }
-    // Fallback: use the full row text (same approach as _wmFindGmailRow strategy 5)
-    return row.textContent.toLowerCase();
-}
+// Called from content-sidebar.js after inbox emails load.
+// emails = [{ thread_id, from_name, from_email, subject, ... }]
+function applyContactPriorityFromEmails(emails) {
+    _contactPriorityThreads.clear();
+    if (!_priorities.length || !emails?.length) return;
 
-function applyContactPriorityHighlights() {
-    _clearContactHighlights();
-    console.log('[Priority] applyContactPriorityHighlights — priorities:', _priorities.length, _priorities.map(p => p.value));
-    if (!_priorities.length) return;
-
-    const rows = document.querySelectorAll('tr.zA, tr.zE');
-    console.log('[Priority] Gmail rows found:', rows.length);
-
-    rows.forEach(row => {
-        // Skip rows already highlighted by the inbox-summary system
-        if (row.hasAttribute('data-wm-priority')) return;
-
-        const senderText = _getSenderText(row);
-        console.log('[Priority] row senderText:', senderText.substring(0, 80));
+    for (const email of emails) {
+        const senderName  = (email.from_name  || '').toLowerCase();
+        const senderEmail = (email.from_email || '').toLowerCase();
 
         for (const p of _priorities) {
             const val = p.value.toLowerCase().trim();
             if (!val) continue;
-            if (!senderText.includes(val)) continue;
-
-            row.setAttribute('data-wm-contact-priority', p.id);
-
-            // Primary: box-shadow on the <tr> itself — same inline-style approach
-            // as _wmHighlightRow, which works even when td has overflow:hidden
-            row.style.setProperty('box-shadow', `inset 4px 0 0 ${p.color}`, 'important');
-
-            // Belt-and-suspenders: also inject a marker div into the first <td>
-            const firstTd = row.querySelector('td');
-            if (firstTd && !firstTd.querySelector('.wm-contact-priority-marker')) {
-                firstTd.style.setProperty('position', 'relative', 'important');
-                const marker = document.createElement('div');
-                marker.className = 'wm-contact-priority-marker';
-                marker.style.cssText = [
-                    'position:absolute',
-                    'left:0', 'top:0', 'bottom:0',
-                    'width:4px',
-                    `background:${p.color}`,
-                    'z-index:10',
-                    'pointer-events:none'
-                ].join(';');
-                firstTd.prepend(marker);
+            if (senderName.includes(val) || senderEmail.includes(val)) {
+                if (email.thread_id) {
+                    _contactPriorityThreads.set(email.thread_id, {
+                        color: p.color,
+                        subject: email.subject || '',
+                        from: email.from_name || email.from_email || ''
+                    });
+                }
+                break;
             }
-            break;
         }
+    }
+
+    applyContactPriorityHighlights();
+}
+
+function applyContactPriorityHighlights() {
+    _clearContactHighlights();
+    if (!_contactPriorityThreads.size) return;
+
+    _contactPriorityThreads.forEach(({ color, subject, from }, threadId) => {
+        // Use the same reliable 5-strategy row finder as the inbox system
+        const row = _wmFindGmailRow(threadId, { subject, from });
+        _highlightContactRow(row, color);
     });
 }
 
-// Debounced observer — re-applies when Gmail re-renders the list
+// Re-apply when Gmail re-renders the list
 let _contactObserver    = null;
 let _contactHighlightTimer = null;
 
@@ -199,7 +196,6 @@ function renderPriorityList(sidebar) {
 async function wirePriorityContacts(sidebar) {
     await loadPriorities();
     renderPriorityList(sidebar);
-    applyContactPriorityHighlights();
     startContactPriorityObserver();
 
     // Color swatches
