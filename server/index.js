@@ -429,7 +429,8 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
                                 file_type: att.mimeType,
                                 file_size: att.size,
                                 gmail_message_id: msgId,
-                                gmail_attachment_id: att.attachmentId
+                                gmail_attachment_id: att.attachmentId,
+                                email_date: new Date(parseInt(gmailMsg.internalDate)).toISOString()
                             });
                         } catch (attErr) {
                             console.error(`[Sync] Attachment error (${att.filename}):`, attErr.message);
@@ -1165,7 +1166,7 @@ app.get('/user/media', requireAuth, async (req, res) => {
 
         let query = supabase
             .from('user_media')
-            .select('id, original_name, file_type, file_size, storage_path, created_at, gmail_message_id')
+            .select('id, original_name, file_type, file_size, storage_path, created_at, email_date, gmail_message_id')
             .eq('user_id', req.userId)
             .order('created_at', { ascending: false })
             .limit(200);
@@ -1185,7 +1186,7 @@ app.get('/user/media', requireAuth, async (req, res) => {
                 name: item.original_name,
                 type: item.file_type,
                 size: item.file_size,
-                created_at: item.created_at,
+                created_at: item.email_date || item.created_at,
                 from_email: !!item.gmail_message_id,
                 url: urlData?.signedUrl || null
             };
