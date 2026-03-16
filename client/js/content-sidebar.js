@@ -265,6 +265,20 @@ function buildSidebarHTML() {
                     <button class="wm-media-filter-btn" data-filter="jpeg">JPEG</button>
                     <button class="wm-media-filter-btn" data-filter="png">PNG</button>
                 </div>
+                <div class="wm-media-daterange">
+                    <div class="wm-media-daterange-inputs">
+                        <div class="wm-media-date-field">
+                            <label class="wm-media-date-label">From</label>
+                            <input type="date" class="wm-media-date-input" id="wm-media-date-from">
+                        </div>
+                        <span class="wm-media-date-sep">→</span>
+                        <div class="wm-media-date-field">
+                            <label class="wm-media-date-label">To</label>
+                            <input type="date" class="wm-media-date-input" id="wm-media-date-to">
+                        </div>
+                        <button class="wm-media-date-clear" id="wm-media-date-clear" title="Clear date range">✕</button>
+                    </div>
+                </div>
                 <div class="wm-media-upload-status" id="wm-media-upload-status"></div>
                 <div class="wm-media-list" id="wm-media-list"></div>
                 <div class="wm-media-empty" id="wm-media-empty">

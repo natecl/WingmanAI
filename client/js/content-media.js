@@ -41,6 +41,8 @@ function _mediaEsc(str) {
 let _mediaCache = [];
 let _mediaActiveFilter = 'all';
 let _mediaActiveSort = 'newest';
+let _mediaDateFrom = null; // Date object or null
+let _mediaDateTo   = null; // Date object or null
 
 function _mediaSortFiles(files) {
     const arr = [...files];
@@ -86,7 +88,15 @@ function renderMediaList(sidebar, files) {
     const empty = sidebar.querySelector('#wm-media-empty');
     if (!list) return;
 
-    const filtered = _mediaSortFiles(files.filter(f => _mediaMatchesFilter(f, _mediaActiveFilter)));
+    const filtered = _mediaSortFiles(files.filter(f => {
+        if (!_mediaMatchesFilter(f, _mediaActiveFilter)) return false;
+        if (_mediaDateFrom || _mediaDateTo) {
+            const d = new Date(f.created_at);
+            if (_mediaDateFrom && d < _mediaDateFrom) return false;
+            if (_mediaDateTo   && d > _mediaDateTo)   return false;
+        }
+        return true;
+    }));
 
     if (!filtered.length) {
         list.innerHTML = '';
@@ -318,6 +328,30 @@ function wireMediaTab(sidebar) {
         if (tab.dataset.tab === 'media') {
             tab.addEventListener('click', () => loadMediaFiles(sidebar));
         }
+    });
+
+    // Date range
+    const dateFrom  = sidebar.querySelector('#wm-media-date-from');
+    const dateTo    = sidebar.querySelector('#wm-media-date-to');
+    const dateClear = sidebar.querySelector('#wm-media-date-clear');
+
+    function applyDateRange() {
+        _mediaDateFrom = dateFrom.value ? new Date(dateFrom.value + 'T00:00:00') : null;
+        // Set "to" to end of day so the selected date is fully included
+        _mediaDateTo   = dateTo.value   ? new Date(dateTo.value   + 'T23:59:59') : null;
+        dateClear.style.display = (_mediaDateFrom || _mediaDateTo) ? 'flex' : 'none';
+        renderMediaList(sidebar, _mediaCache);
+    }
+
+    dateFrom.addEventListener('change', applyDateRange);
+    dateTo.addEventListener('change', applyDateRange);
+    dateClear.addEventListener('click', () => {
+        dateFrom.value = '';
+        dateTo.value   = '';
+        _mediaDateFrom = null;
+        _mediaDateTo   = null;
+        dateClear.style.display = 'none';
+        renderMediaList(sidebar, _mediaCache);
     });
 
     // Sort buttons

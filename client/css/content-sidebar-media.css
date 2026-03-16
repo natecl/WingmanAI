@@ -121,6 +121,73 @@
 }
 
 /* =========================================================
+   DATE RANGE
+========================================================= */
+
+.wm-media-daterange {
+    margin-bottom: 0.5rem;
+}
+
+.wm-media-daterange-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.wm-media-date-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.wm-media-date-label {
+    font-size: 0.68rem;
+    color: var(--wm-text-dim);
+    font-weight: 500;
+}
+
+.wm-media-date-input {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--wm-border);
+    border-radius: 7px;
+    color: var(--wm-text);
+    font-size: 0.75rem;
+    padding: 5px 7px;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.2s;
+    color-scheme: dark;
+}
+
+.wm-media-date-input:focus { border-color: var(--wm-primary); }
+
+.wm-media-date-sep {
+    font-size: 0.75rem;
+    color: var(--wm-text-dim);
+    flex-shrink: 0;
+    margin-top: 14px;
+}
+
+.wm-media-date-clear {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--wm-text-dim);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-top: 14px;
+    transition: color 0.15s;
+}
+
+.wm-media-date-clear:hover { color: #ff6b6b; }
+
+/* =========================================================
    UPLOAD STATUS
 ========================================================= */
 
