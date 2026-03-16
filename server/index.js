@@ -26,9 +26,7 @@ const {
     parseFrom,
     upsertMessage,
     storeGmailTokens,
-    getGmailTokens,
-    extractAttachmentMeta,
-    fetchAttachmentData
+    getGmailTokens
 } = require('./services/gmailService');
 const {
     embedQuery,
@@ -110,7 +108,7 @@ const ALLOWED_MEDIA_TYPES = new Set([
 ]);
 const mediaUpload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 20 * 1024 * 1024 },
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
     fileFilter: (req, file, cb) => {
         if (ALLOWED_MEDIA_TYPES.has(file.mimetype)) cb(null, true);
         else cb(new Error('Unsupported file type. Allowed: PDF, JPEG, PNG, GIF, WebP, SVG'));
@@ -396,46 +394,6 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
 
                     processed++;
                     if (result === 'new' || result === 'changed') queued++;
-
-                    // Extract and store media attachments from this message
-                    const attachments = extractAttachmentMeta(gmailMsg.payload);
-                    for (const att of attachments) {
-                        try {
-                            // Dedup: skip if this attachment was already stored
-                            const { data: existing } = await supabase
-                                .from('user_media')
-                                .select('id')
-                                .eq('user_id', req.userId)
-                                .eq('gmail_attachment_id', att.attachmentId)
-                                .maybeSingle();
-                            if (existing) continue;
-
-                            const buffer = await fetchAttachmentData(provider_token, msgId, att.attachmentId);
-                            const safeName = att.filename.replace(/[^a-zA-Z0-9._\-]/g, '_');
-                            const storagePath = `${req.userId}/${Date.now()}-${safeName}`;
-
-                            const { error: uploadErr } = await supabase.storage
-                                .from('user-media')
-                                .upload(storagePath, buffer, { contentType: att.mimeType, upsert: false });
-                            if (uploadErr) {
-                                console.error(`[Sync] Storage upload failed for ${att.filename}:`, uploadErr.message);
-                                continue;
-                            }
-
-                            await supabase.from('user_media').insert({
-                                user_id: req.userId,
-                                storage_path: storagePath,
-                                original_name: att.filename,
-                                file_type: att.mimeType,
-                                file_size: att.size,
-                                gmail_message_id: msgId,
-                                gmail_attachment_id: att.attachmentId,
-                                email_date: new Date(parseInt(gmailMsg.internalDate)).toISOString()
-                            });
-                        } catch (attErr) {
-                            console.error(`[Sync] Attachment error (${att.filename}):`, attErr.message);
-                        }
-                    }
                 } catch (msgErr) {
                     if (msgErr.code === 'GMAIL_AUTH_ERROR') {
                         console.warn(`[Sync] Gmail token expired for user ${req.userId} — stopping batch. User needs to re-authenticate.`);
@@ -509,7 +467,7 @@ app.post('/search', requireAuth, async (req, res) => {
         res.json({ results });
     } catch (error) {
         console.error('Search error:', error);
-        res.status(500).json({ error: error.message || 'Search failed' });
+        res.status(500).json({ error: 'Search failed' });
     }
 });
 
@@ -1155,51 +1113,10 @@ app.post('/api/process-indexing-jobs', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// MEDIA — list, upload, delete
+// MEDIA — upload, list, delete
 // ---------------------------------------------------------------------------
 
-// GET /user/media?search=... — list files sorted newest first with signed URLs
-app.get('/user/media', requireAuth, async (req, res) => {
-    try {
-        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-        const search = (req.query.search || '').trim();
-
-        let query = supabase
-            .from('user_media')
-            .select('id, original_name, file_type, file_size, storage_path, created_at, email_date, gmail_message_id')
-            .eq('user_id', req.userId)
-            .order('created_at', { ascending: false })
-            .limit(200);
-
-        if (search) query = query.ilike('original_name', `%${search}%`);
-
-        const { data, error } = await query;
-        if (error) return res.status(500).json({ error: 'Failed to fetch media' });
-
-        // Generate 1-hour signed URLs for each file
-        const files = await Promise.all((data || []).map(async (item) => {
-            const { data: urlData } = await supabase.storage
-                .from('user-media')
-                .createSignedUrl(item.storage_path, 3600);
-            return {
-                id: item.id,
-                name: item.original_name,
-                type: item.file_type,
-                size: item.file_size,
-                created_at: item.email_date || item.created_at,
-                from_email: !!item.gmail_message_id,
-                url: urlData?.signedUrl || null
-            };
-        }));
-
-        res.json({ files });
-    } catch (err) {
-        console.error('[Media list] Error:', err);
-        res.status(500).json({ error: 'Failed to fetch media' });
-    }
-});
-
-// POST /user/media/upload — manually upload a file
+// POST /user/media/upload — upload a file to Supabase Storage + save metadata
 app.post('/user/media/upload', requireAuth, (req, res, next) => {
     mediaUpload.single('media')(req, res, (err) => {
         if (err) {
@@ -1219,18 +1136,28 @@ app.post('/user/media/upload', requireAuth, (req, res, next) => {
 
         const { error: uploadErr } = await supabase.storage
             .from('user-media')
-            .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-        if (uploadErr) return res.status(500).json({ error: 'Storage upload failed' });
+            .upload(storagePath, req.file.buffer, {
+                contentType: req.file.mimetype,
+                upsert: false
+            });
+        if (uploadErr) {
+            console.error('[Media upload] Storage error:', uploadErr.message);
+            return res.status(500).json({ error: 'Storage upload failed' });
+        }
 
-        const { error: dbErr } = await supabase.from('user_media').insert({
-            user_id: req.userId,
-            storage_path: storagePath,
-            original_name: req.file.originalname,
-            file_type: req.file.mimetype,
-            file_size: req.file.size
-        });
+        const { error: dbErr } = await supabase
+            .from('user_media')
+            .insert({
+                user_id: req.userId,
+                storage_path: storagePath,
+                original_name: req.file.originalname,
+                file_type: req.file.mimetype,
+                file_size: req.file.size
+            });
         if (dbErr) {
+            // Roll back storage upload
             await supabase.storage.from('user-media').remove([storagePath]);
+            console.error('[Media upload] DB error:', dbErr.message);
             return res.status(500).json({ error: 'Failed to save file metadata' });
         }
 
@@ -1241,7 +1168,47 @@ app.post('/user/media/upload', requireAuth, (req, res, next) => {
     }
 });
 
-// DELETE /user/media/:id — delete file from storage + DB
+// GET /user/media?search=... — list files sorted by created_at DESC, with signed URLs
+app.get('/user/media', requireAuth, async (req, res) => {
+    try {
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+        const search = (req.query.search || '').trim();
+
+        let query = supabase
+            .from('user_media')
+            .select('id, original_name, file_type, file_size, storage_path, created_at')
+            .eq('user_id', req.userId)
+            .order('created_at', { ascending: false })
+            .limit(200);
+
+        if (search) query = query.ilike('original_name', `%${search}%`);
+
+        const { data, error } = await query;
+        if (error) return res.status(500).json({ error: 'Failed to fetch media' });
+
+        // Generate 1-hour signed URLs for each file
+        const files = await Promise.all((data || []).map(async (item) => {
+            const { data: urlData } = await supabase.storage
+                .from('user-media')
+                .createSignedUrl(item.storage_path, 3600);
+            return {
+                id: item.id,
+                name: item.original_name,
+                type: item.file_type,
+                size: item.file_size,
+                created_at: item.created_at,
+                url: urlData?.signedUrl || null
+            };
+        }));
+
+        res.json({ files });
+    } catch (err) {
+        console.error('[Media list] Error:', err);
+        res.status(500).json({ error: 'Failed to fetch media' });
+    }
+});
+
+// DELETE /user/media/:id — delete file from Storage + DB
 app.delete('/user/media/:id', requireAuth, async (req, res) => {
     try {
         const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
