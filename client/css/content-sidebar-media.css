@@ -208,6 +208,43 @@
     letter-spacing: 0.02em;
 }
 
+/* Important filter pill */
+.wm-media-filter-important { color: #ffd32a; }
+.wm-media-filter-important.wm-media-filter-active {
+    background: rgba(255, 211, 42, 0.15);
+    border-color: #ffd32a;
+    color: #ffd32a;
+}
+
+/* Important item highlight */
+.wm-media-item-important {
+    border-color: rgba(255, 211, 42, 0.4);
+    background: rgba(255, 211, 42, 0.04);
+}
+
+/* Star button */
+.wm-media-star-btn {
+    background: none;
+    border: none;
+    color: var(--wm-text-dim);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.wm-media-item:hover .wm-media-star-btn { opacity: 1; }
+.wm-media-star-btn.wm-media-star-active  {
+    opacity: 1;
+    color: #ffd32a;
+}
+.wm-media-star-btn:hover { color: #ffd32a; }
+
 /* Delete button */
 .wm-media-delete-btn {
     background: none;

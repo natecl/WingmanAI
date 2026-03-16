@@ -40,13 +40,32 @@ function _mediaEsc(str) {
 // Cache fetched files so filter buttons don't re-fetch
 let _mediaCache = [];
 let _mediaActiveFilter = 'all';
+let _importantMediaIds = new Set();
+
+function _loadImportantMedia() {
+    return new Promise(resolve => {
+        try {
+            chrome.storage.local.get('wm_important_media', result => {
+                _importantMediaIds = new Set(result.wm_important_media || []);
+                resolve();
+            });
+        } catch { resolve(); }
+    });
+}
+
+function _saveImportantMedia() {
+    try {
+        chrome.storage.local.set({ wm_important_media: [..._importantMediaIds] });
+    } catch {}
+}
 
 function _mediaMatchesFilter(file, filter) {
-    if (filter === 'all')   return true;
-    if (filter === 'pdf')   return file.type === 'application/pdf';
-    if (filter === 'image') return file.type && file.type.startsWith('image/');
-    if (filter === 'jpeg')  return file.type === 'image/jpeg' || file.type === 'image/jpg';
-    if (filter === 'png')   return file.type === 'image/png';
+    if (filter === 'all')       return true;
+    if (filter === 'important') return _importantMediaIds.has(file.id);
+    if (filter === 'pdf')       return file.type === 'application/pdf';
+    if (filter === 'image')     return file.type && file.type.startsWith('image/');
+    if (filter === 'jpeg')      return file.type === 'image/jpeg' || file.type === 'image/jpg';
+    if (filter === 'png')       return file.type === 'image/png';
     return true;
 }
 
@@ -65,6 +84,22 @@ function renderMediaList(sidebar, files) {
 
     if (empty) empty.style.display = 'none';
     list.innerHTML = filtered.map(renderMediaItem).join('');
+
+    list.querySelectorAll('.wm-media-star-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const item = btn.closest('.wm-media-item');
+            if (!item) return;
+            const id = item.dataset.id;
+            if (_importantMediaIds.has(id)) {
+                _importantMediaIds.delete(id);
+            } else {
+                _importantMediaIds.add(id);
+            }
+            _saveImportantMedia();
+            renderMediaList(sidebar, _mediaCache);
+        });
+    });
 
     list.querySelectorAll('.wm-media-delete-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
@@ -111,18 +146,20 @@ async function loadMediaFiles(sidebar, search = '') {
 }
 
 function renderMediaItem(file) {
-    const icon    = _mediaFileIcon(file.type);
-    const size    = _mediaFormatSize(file.size);
-    const date    = _mediaFormatDate(file.created_at);
-    const name    = _mediaEsc(file.name);
-    const url     = _mediaEsc(file.url || '');
-    const isImg   = file.type && file.type.startsWith('image/');
-    const badge   = file.from_email
+    const icon       = _mediaFileIcon(file.type);
+    const size       = _mediaFormatSize(file.size);
+    const date       = _mediaFormatDate(file.created_at);
+    const name       = _mediaEsc(file.name);
+    const url        = _mediaEsc(file.url || '');
+    const isImg      = file.type && file.type.startsWith('image/');
+    const isImportant = _importantMediaIds.has(file.id);
+    const badge      = file.from_email
         ? `<span class="wm-media-source-badge">from email</span>`
         : '';
 
     return `
-        <div class="wm-media-item" data-id="${_mediaEsc(file.id)}" data-url="${url}" title="${name}">
+        <div class="wm-media-item${isImportant ? ' wm-media-item-important' : ''}"
+             data-id="${_mediaEsc(file.id)}" data-url="${url}" title="${name}">
             <div class="wm-media-thumb">
                 ${isImg && file.url
                     ? `<img src="${url}" alt="${name}" class="wm-media-img-thumb"
@@ -135,6 +172,14 @@ function renderMediaItem(file) {
                 <div class="wm-media-name">${name}</div>
                 <div class="wm-media-meta">${size} · ${date} ${badge}</div>
             </div>
+            <button class="wm-media-star-btn${isImportant ? ' wm-media-star-active' : ''}"
+                    title="${isImportant ? 'Remove from Important' : 'Mark as Important'}">
+                <svg viewBox="0 0 24 24" width="13" height="13"
+                     fill="${isImportant ? 'currentColor' : 'none'}"
+                     stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+            </button>
             <button class="wm-media-delete-btn" title="Delete file">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6"/>
@@ -254,6 +299,8 @@ async function deleteMediaFile(sidebar, id, itemEl) {
 ========================================================= */
 
 function wireMediaTab(sidebar) {
+    _loadImportantMedia();
+
     // Load when the Media tab is clicked
     sidebar.querySelectorAll('.wm-sidebar-tab').forEach(tab => {
         if (tab.dataset.tab === 'media') {

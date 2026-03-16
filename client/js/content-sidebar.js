@@ -252,6 +252,7 @@ function buildSidebarHTML() {
                 </div>
                 <div class="wm-media-filters" id="wm-media-filters">
                     <button class="wm-media-filter-btn wm-media-filter-active" data-filter="all">All</button>
+                    <button class="wm-media-filter-btn wm-media-filter-important" data-filter="important">⭐ Important</button>
                     <button class="wm-media-filter-btn" data-filter="pdf">PDF</button>
                     <button class="wm-media-filter-btn" data-filter="image">Images</button>
                     <button class="wm-media-filter-btn" data-filter="jpeg">JPEG</button>
