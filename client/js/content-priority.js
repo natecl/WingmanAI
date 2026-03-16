@@ -44,17 +44,12 @@ function scheduleHighlight() {
 }
 
 function applyPriorityHighlights() {
-    // Clear existing
-    document.querySelectorAll('.wm-priority-row').forEach(el => {
-        el.classList.remove('wm-priority-row');
-        el.style.removeProperty('--wm-ph-color');
-    });
+    // Remove any previously injected dots
+    document.querySelectorAll('.wm-priority-dot-injected').forEach(el => el.remove());
 
     if (!_priorities.length) return;
 
-    // Gmail email rows: class zA
     document.querySelectorAll('tr.zA').forEach(row => {
-        // Sender element has an [email] attribute Gmail populates
         const senderEl = row.querySelector('[email]');
         if (!senderEl) return;
 
@@ -65,8 +60,11 @@ function applyPriorityHighlights() {
             const val = p.value.toLowerCase().trim();
             if (!val) continue;
             if (senderEmail.includes(val) || senderName.includes(val)) {
-                row.classList.add('wm-priority-row');
-                row.style.setProperty('--wm-ph-color', p.color);
+                const dot = document.createElement('span');
+                dot.className = 'wm-priority-dot-injected';
+                dot.style.background = p.color;
+                dot.title = `Priority: ${p.value}`;
+                senderEl.parentElement.insertBefore(dot, senderEl);
                 break;
             }
         }

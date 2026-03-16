@@ -4,8 +4,15 @@
    GMAIL ROW HIGHLIGHT
 ========================================================= */
 
-tr.zA.wm-priority-row {
-    box-shadow: inset 4px 0 0 var(--wm-ph-color, #ff6b6b) !important;
+/* Priority dot injected next to sender name */
+.wm-priority-dot-injected {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+    flex-shrink: 0;
 }
 
 /* =========================================================
