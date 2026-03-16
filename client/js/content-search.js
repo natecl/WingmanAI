@@ -44,7 +44,7 @@ function wireSemanticSearch(sidebar) {
 
             renderSidebarSearchResults(resultsEl, response.data.results);
         } catch (err) {
-            resultsEl.innerHTML = `<div class="wm-sidebar-error">Search failed: ${escapeHTML(err.message)}</div>`;
+            resultsEl.innerHTML = `<div class="wm-sidebar-error">${escapeHTML(err.message || 'Search failed')}</div>`;
         } finally {
             searchBtn.disabled = false;
             searchBtn.textContent = 'Search';
@@ -110,7 +110,7 @@ async function handleSidebarSync(silent) {
         }
     } catch (err) {
         if (!silent) {
-            syncStatus.textContent = `Sync failed: ${err.message}`;
+            syncStatus.textContent = err.message || 'Sync failed';
             syncStatus.className = 'wm-sidebar-sync-status wm-sync-error';
         }
     }
@@ -137,16 +137,22 @@ async function processIndexingQueue(token, statusEl) {
 
             if (!res.ok) break;
 
-            totalProcessed += res.data.processed || 0;
+            const processed = res.data.processed || 0;
             const remaining = res.data.remaining || 0;
+            totalProcessed += processed;
 
-            if (statusEl) {
-                statusEl.textContent = `Indexing emails... ${totalProcessed} done, ${remaining} remaining`;
+            if (statusEl && remaining > 0) {
+                // Only show progress if this endpoint is actually doing work.
+                // If processed=0, the local worker is handling it — show a passive message.
+                statusEl.textContent = processed > 0
+                    ? `Indexing emails... ${totalProcessed} done, ${remaining} remaining`
+                    : `Indexing in background — ${remaining} emails queued`;
                 statusEl.className = 'wm-sidebar-sync-status';
                 statusEl.style.color = 'var(--wm-text-dim)';
             }
 
-            if (remaining === 0) break;
+            // If endpoint isn't processing anything, the local worker is running — stop polling
+            if (remaining === 0 || processed === 0) break;
 
             // Small delay between batches to avoid hammering the server
             await new Promise(r => setTimeout(r, 1000));
@@ -418,7 +424,7 @@ async function handleOverlaySemanticSearch() {
 
         renderOverlaySemanticResults(resultsContainer, response.data.results);
     } catch (err) {
-        resultsContainer.innerHTML = `<div class="wm-scraper-status wm-scraper-status-error" style="display:block;">Search failed: ${escapeHTML(err.message)}</div>`;
+        resultsContainer.innerHTML = `<div class="wm-scraper-status wm-scraper-status-error" style="display:block;">${escapeHTML(err.message || 'Search failed')}</div>`;
     } finally {
         if (overlayEl) overlayEl.classList.remove('is-searching');
     }

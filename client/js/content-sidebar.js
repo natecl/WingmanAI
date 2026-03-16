@@ -90,6 +90,7 @@ function buildSidebarHTML() {
             <button class="wm-sidebar-tab wm-sidebar-tab-active" data-tab="main">Main</button>
             <button class="wm-sidebar-tab" data-tab="leads">Leads</button>
             <button class="wm-sidebar-tab" data-tab="search">Search</button>
+            <button class="wm-sidebar-tab" data-tab="media">Media</button>
             <button class="wm-sidebar-tab" data-tab="settings">Settings</button>
         </div>
 
@@ -208,6 +209,39 @@ function buildSidebarHTML() {
             </div>
         </div>
 
+        <!-- Media Panel -->
+        <div class="wm-sidebar-panel" id="wm-sidebar-panel-media">
+            <div class="wm-sidebar-card">
+                <div class="wm-sidebar-section-title">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <span>Media</span>
+                </div>
+                <div class="wm-media-toolbar">
+                    <input type="text" class="wm-media-search-input" id="wm-media-search"
+                        placeholder="Search files...">
+                    <button class="wm-media-upload-btn" id="wm-media-upload-btn">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="16 16 12 12 8 16"/>
+                            <line x1="12" y1="12" x2="12" y2="21"/>
+                            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                        </svg>
+                        Upload
+                    </button>
+                    <input type="file" id="wm-media-file-input" accept=".pdf,image/*" style="display:none;">
+                </div>
+                <div class="wm-media-upload-status" id="wm-media-upload-status"></div>
+                <div class="wm-media-list" id="wm-media-list"></div>
+                <div class="wm-media-empty" id="wm-media-empty">
+                    <div class="wm-media-empty-icon">🖼️</div>
+                    <div class="wm-media-empty-text">No media yet.<br>Attachments from your emails will appear here after syncing.</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Settings Panel -->
         <div class="wm-sidebar-panel" id="wm-sidebar-panel-settings">
             <div class="wm-sidebar-card">
@@ -305,6 +339,7 @@ function wireSidebarEvents(sidebar, toggle) {
     wireLeadFinder(sidebar);
     wireSemanticSearch(sidebar);
     wireResumeUpload(sidebar);
+    wireMediaTab(sidebar);
     wireReminders();
 }
 

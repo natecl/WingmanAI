@@ -302,6 +302,60 @@ async function getGmailTokens(supabase, userId) {
     return data;
 }
 
+/**
+ * MIME types we extract and store as media during Gmail sync.
+ */
+const MEDIA_ATTACHMENT_TYPES = new Set([
+    'application/pdf',
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'
+]);
+
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20 MB
+
+/**
+ * Recursively walk a Gmail message payload and return metadata for every
+ * attachment whose MIME type we support and that fits within the size limit.
+ * Returns [{ filename, mimeType, attachmentId, size }]
+ */
+function extractAttachmentMeta(payload) {
+    const results = [];
+
+    function walk(part) {
+        if (!part) return;
+        const filename     = part.filename;
+        const mimeType     = (part.mimeType || '').toLowerCase();
+        const attachmentId = part.body?.attachmentId;
+        const size         = part.body?.size || 0;
+
+        if (filename && attachmentId && MEDIA_ATTACHMENT_TYPES.has(mimeType) && size <= MAX_ATTACHMENT_BYTES) {
+            results.push({ filename, mimeType, attachmentId, size });
+        }
+
+        for (const child of (part.parts || [])) {
+            walk(child);
+        }
+    }
+
+    walk(payload);
+    return results;
+}
+
+/**
+ * Fetch the binary data of a Gmail attachment.
+ * Returns a Node.js Buffer.
+ */
+async function fetchAttachmentData(accessToken, messageId, attachmentId) {
+    const res = await fetch(
+        `${GMAIL_API_BASE}/messages/${messageId}/attachments/${attachmentId}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) throw new Error(`Gmail attachment fetch error: ${res.status}`);
+    const json = await res.json();
+    // Gmail returns base64url encoding; convert to standard base64 before decoding
+    const base64 = (json.data || '').replace(/-/g, '+').replace(/_/g, '/');
+    return Buffer.from(base64, 'base64');
+}
+
 module.exports = {
     fetchMessageIds,
     fetchMessage,
@@ -313,5 +367,7 @@ module.exports = {
     parseFrom,
     upsertMessage,
     storeGmailTokens,
-    getGmailTokens
+    getGmailTokens,
+    extractAttachmentMeta,
+    fetchAttachmentData
 };

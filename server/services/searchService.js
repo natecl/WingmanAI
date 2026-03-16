@@ -13,7 +13,7 @@ async function embedQuery(openai, query) {
     const response = await openai.embeddings.create({
         model: 'text-embedding-3-small',
         input: query,
-        dimensions: 512
+        dimensions: 1536
     });
 
     return response.data[0].embedding;

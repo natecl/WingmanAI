@@ -32,6 +32,7 @@
         "js/content-leads.js",
         "js/content-reminders.js",
         "js/content-resume.js",
+        "js/content-media.js",
         "js/content-search.js",
         "js/content-sidebar.js",
         "js/content-init.js"
@@ -46,6 +47,7 @@
         "css/content-sidebar-leads.css",
         "css/content-sidebar-inbox.css",
         "css/content-sidebar-search.css",
+        "css/content-sidebar-media.css",
         "css/content-sidebar-settings.css",
         "css/content-reminder-toast.css",
         "css/content-semantic-search.css"

@@ -108,7 +108,7 @@ async function embedTexts(openai, texts) {
     const response = await openai.embeddings.create({
         model: 'text-embedding-3-small',
         input: texts,
-        dimensions: 512
+        dimensions: 1536
     });
 
     return response.data.map(d => d.embedding);

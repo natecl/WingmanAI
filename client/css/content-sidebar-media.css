@@ -1,0 +1,222 @@
+/* BetterEmailV2 — Media Tab */
+
+/* =========================================================
+   TOOLBAR: search + upload button
+========================================================= */
+
+.wm-media-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.6rem;
+}
+
+.wm-media-search-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--wm-border);
+    border-radius: 8px;
+    color: var(--wm-text);
+    font-size: 0.82rem;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.wm-media-search-input::placeholder { color: var(--wm-text-dim); }
+.wm-media-search-input:focus        { border-color: var(--wm-primary); }
+
+.wm-media-upload-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--wm-primary);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 7px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.wm-media-upload-btn:hover    { background: var(--wm-primary-dark); transform: translateY(-1px); }
+.wm-media-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* =========================================================
+   UPLOAD STATUS
+========================================================= */
+
+.wm-media-upload-status {
+    font-size: 0.78rem;
+    min-height: 1.1em;
+    margin-bottom: 0.4rem;
+    color: var(--wm-text-dim);
+}
+
+.wm-media-upload-status.wm-status-ok  { color: #4caf50; }
+.wm-media-upload-status.wm-status-err { color: #ff6b6b; }
+
+/* =========================================================
+   DRAG-OVER HIGHLIGHT
+========================================================= */
+
+#wm-sidebar-panel-media.wm-media-drag-over {
+    outline: 2px dashed var(--wm-primary);
+    background: rgba(142, 125, 255, 0.04);
+    border-radius: 12px;
+}
+
+/* =========================================================
+   FILE LIST
+========================================================= */
+
+.wm-media-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    overflow-y: auto;
+    max-height: calc(100vh - 300px);
+    padding-right: 2px;
+}
+
+.wm-media-list::-webkit-scrollbar       { width: 4px; }
+.wm-media-list::-webkit-scrollbar-track { background: transparent; }
+.wm-media-list::-webkit-scrollbar-thumb { background: var(--wm-border); border-radius: 2px; }
+
+/* =========================================================
+   FILE ITEM
+========================================================= */
+
+.wm-media-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--wm-border);
+    border-radius: 9px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.02);
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.wm-media-item:hover {
+    background: rgba(142, 125, 255, 0.07);
+    border-color: var(--wm-primary);
+}
+
+/* Thumbnail */
+.wm-media-thumb {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wm-media-img-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.wm-media-icon-thumb {
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* File info */
+.wm-media-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.wm-media-name {
+    font-size: 0.83rem;
+    color: var(--wm-text);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wm-media-meta {
+    font-size: 0.73rem;
+    color: var(--wm-text-dim);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+/* "from email" badge */
+.wm-media-source-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    background: rgba(142, 125, 255, 0.18);
+    color: var(--wm-primary);
+    border-radius: 4px;
+    padding: 1px 5px;
+    letter-spacing: 0.02em;
+}
+
+/* Delete button */
+.wm-media-delete-btn {
+    background: none;
+    border: none;
+    color: var(--wm-text-dim);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.wm-media-item:hover .wm-media-delete-btn { opacity: 1; }
+.wm-media-delete-btn:hover                { color: #ff6b6b; }
+.wm-media-delete-btn:disabled             { opacity: 0.3; cursor: not-allowed; }
+
+/* =========================================================
+   STATES
+========================================================= */
+
+.wm-media-loading,
+.wm-media-error {
+    font-size: 0.82rem;
+    color: var(--wm-text-dim);
+    text-align: center;
+    padding: 1.5rem 0;
+}
+
+.wm-media-empty {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+.wm-media-empty-icon { font-size: 2rem; opacity: 0.45; }
+
+.wm-media-empty-text {
+    font-size: 0.82rem;
+    color: var(--wm-text-dim);
+    line-height: 1.6;
+}

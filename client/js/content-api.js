@@ -51,13 +51,29 @@ function apiFetch(url, options = {}) {
    AUTH HELPERS (content script context)
 ========================================================= */
 
-async function isAuthenticated() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get('wm_supabase_session', (result) => {
-            const session = result.wm_supabase_session || null;
-            resolve(!!(session && session.access_token));
-        });
+const REFRESH_MSG = 'Extension was reloaded — please refresh this Gmail tab (Ctrl+Shift+R or Cmd+Shift+R)';
+
+function chromeStorageGet(key) {
+    return new Promise((resolve, reject) => {
+        try {
+            chrome.storage.local.get(key, (result) => {
+                if (chrome.runtime.lastError) {
+                    const msg = chrome.runtime.lastError.message || '';
+                    return reject(new Error(msg.includes('Extension context invalidated') ? REFRESH_MSG : msg));
+                }
+                resolve(result[key] || null);
+            });
+        } catch (err) {
+            reject(new Error(err.message && err.message.includes('Extension context invalidated') ? REFRESH_MSG : err.message));
+        }
     });
+}
+
+async function isAuthenticated() {
+    try {
+        const session = await chromeStorageGet('wm_supabase_session');
+        return !!(session && session.access_token);
+    } catch { return false; }
 }
 
 function getApiBase() {
@@ -65,21 +81,14 @@ function getApiBase() {
 }
 
 async function getContentAccessToken() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get('wm_supabase_session', (result) => {
-            const session = result.wm_supabase_session || null;
-            if (!session) return resolve(null);
-            resolve(session.access_token || null);
-        });
-    });
+    try {
+        const session = await chromeStorageGet('wm_supabase_session');
+        return session ? (session.access_token || null) : null;
+    } catch { return null; }
 }
 
 async function getContentSession() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get('wm_supabase_session', (result) => {
-            resolve(result.wm_supabase_session || null);
-        });
-    });
+    return chromeStorageGet('wm_supabase_session');
 }
 
 // Listen for auth state changes and refresh sidebar
