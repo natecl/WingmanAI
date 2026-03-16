@@ -119,12 +119,16 @@ async function handleSidebarSync(silent) {
     }
 }
 
+let _indexingInProgress = false;
+
 /**
  * Process pending indexing jobs by calling the server endpoint in a loop.
  * Each call processes up to 2 jobs (fits within Vercel Hobby 10s timeout).
  * Runs silently in the background until all jobs are done.
  */
 async function processIndexingQueue(token, statusEl) {
+    if (_indexingInProgress) return;
+    _indexingInProgress = true;
     const MAX_ITERATIONS = 50; // safety limit
     let totalProcessed = 0;
 
@@ -169,6 +173,8 @@ async function processIndexingQueue(token, statusEl) {
         statusEl.textContent = `Indexing complete — ${totalProcessed} emails indexed.`;
         statusEl.className = 'wm-sidebar-sync-status wm-sync-success';
     }
+
+    _indexingInProgress = false;
 }
 
 function renderSidebarSearchResults(container, results) {
