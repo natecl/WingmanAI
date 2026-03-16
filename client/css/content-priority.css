@@ -4,17 +4,6 @@
    GMAIL ROW HIGHLIGHT
 ========================================================= */
 
-/* Priority dot injected next to sender name */
-.wm-priority-dot-injected {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    margin-right: 5px;
-    vertical-align: middle;
-    flex-shrink: 0;
-}
-
 /* =========================================================
    ADD ROW
 ========================================================= */

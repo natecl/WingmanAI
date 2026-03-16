@@ -5,9 +5,8 @@
 
 const PRIORITY_COLORS = ['#ff6b6b', '#ff9f43', '#ffd32a', '#26de81', '#45aaf2', '#a29bfe'];
 
-let _priorities       = [];   // [{ id, value, color }]
-let _selectedColor    = PRIORITY_COLORS[0];
-let _priorityObserver = null;
+let _priorities    = [];   // [{ id, value, color }]
+let _selectedColor = PRIORITY_COLORS[0];
 
 /* =========================================================
    STORAGE
@@ -32,50 +31,6 @@ function savePriorities() {
     });
 }
 
-/* =========================================================
-   GMAIL HIGHLIGHTING
-========================================================= */
-
-let _highlightTimer = null;
-
-function scheduleHighlight() {
-    clearTimeout(_highlightTimer);
-    _highlightTimer = setTimeout(applyPriorityHighlights, 120);
-}
-
-function applyPriorityHighlights() {
-    // Remove any previously injected dots
-    document.querySelectorAll('.wm-priority-dot-injected').forEach(el => el.remove());
-
-    if (!_priorities.length) return;
-
-    document.querySelectorAll('tr.zA').forEach(row => {
-        const senderEl = row.querySelector('[email]');
-        if (!senderEl) return;
-
-        const senderEmail = (senderEl.getAttribute('email') || '').toLowerCase();
-        const senderName  = (senderEl.textContent || '').toLowerCase();
-
-        for (const p of _priorities) {
-            const val = p.value.toLowerCase().trim();
-            if (!val) continue;
-            if (senderEmail.includes(val) || senderName.includes(val)) {
-                const dot = document.createElement('span');
-                dot.className = 'wm-priority-dot-injected';
-                dot.style.background = p.color;
-                dot.title = `Priority: ${p.value}`;
-                senderEl.parentElement.insertBefore(dot, senderEl);
-                break;
-            }
-        }
-    });
-}
-
-function startPriorityObserver() {
-    if (_priorityObserver) return;
-    _priorityObserver = new MutationObserver(scheduleHighlight);
-    _priorityObserver.observe(document.body, { childList: true, subtree: true });
-}
 
 /* =========================================================
    RENDER SIDEBAR LIST
@@ -103,7 +58,6 @@ function renderPriorityList(sidebar) {
             _priorities = _priorities.filter(p => p.id !== btn.dataset.id);
             await savePriorities();
             renderPriorityList(sidebar);
-            applyPriorityHighlights();
         });
     });
 }
@@ -115,8 +69,6 @@ function renderPriorityList(sidebar) {
 async function wirePriorityContacts(sidebar) {
     await loadPriorities();
     renderPriorityList(sidebar);
-    applyPriorityHighlights();
-    startPriorityObserver();
 
     // Color swatches
     const swatchContainer = sidebar.querySelector('#wm-priority-swatches');
@@ -146,7 +98,6 @@ async function wirePriorityContacts(sidebar) {
         await savePriorities();
         input.value = '';
         renderPriorityList(sidebar);
-        applyPriorityHighlights();
     }
 
     addBtn.addEventListener('click', addPriority);
