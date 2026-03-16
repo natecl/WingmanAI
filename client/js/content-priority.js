@@ -64,13 +64,18 @@ function _getSenderText(row) {
 
 function applyContactPriorityHighlights() {
     _clearContactHighlights();
+    console.log('[Priority] applyContactPriorityHighlights — priorities:', _priorities.length, _priorities.map(p => p.value));
     if (!_priorities.length) return;
 
-    document.querySelectorAll('tr.zA, tr.zE').forEach(row => {
+    const rows = document.querySelectorAll('tr.zA, tr.zE');
+    console.log('[Priority] Gmail rows found:', rows.length);
+
+    rows.forEach(row => {
         // Skip rows already highlighted by the inbox-summary system
         if (row.hasAttribute('data-wm-priority')) return;
 
         const senderText = _getSenderText(row);
+        console.log('[Priority] row senderText:', senderText.substring(0, 80));
 
         for (const p of _priorities) {
             const val = p.value.toLowerCase().trim();
