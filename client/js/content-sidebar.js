@@ -111,6 +111,23 @@ function buildSidebarHTML() {
                 </div>
             </div>
 
+            <!-- Priority Contacts -->
+            <div class="wm-sidebar-card">
+                <div class="wm-sidebar-section-title">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                    <span>Priority Contacts</span>
+                </div>
+                <div class="wm-priority-swatches" id="wm-priority-swatches"></div>
+                <div class="wm-priority-add-row">
+                    <input type="text" class="wm-priority-input" id="wm-priority-input"
+                        placeholder="Name or email address...">
+                    <button class="wm-priority-add-btn" id="wm-priority-add-btn">Add</button>
+                </div>
+                <div class="wm-priority-list" id="wm-priority-list"></div>
+            </div>
+
             <!-- Reminders -->
             <div class="wm-sidebar-card">
                 <div class="wm-sidebar-reminders-header">
@@ -348,6 +365,7 @@ function wireSidebarEvents(sidebar, toggle) {
     wireResumeUpload(sidebar);
     wireMediaTab(sidebar);
     wireReminders();
+    wirePriorityContacts(sidebar);
 }
 
 
