@@ -58,6 +58,9 @@ function wireSemanticSearch(sidebar) {
     });
 
     syncBtn.addEventListener('click', () => handleSidebarSync(false));
+
+    // Auto-sync silently when sidebar initializes (after auth settles)
+    setTimeout(() => handleSidebarSync(true), 3000);
 }
 
 async function handleSidebarSync(silent) {

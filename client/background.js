@@ -118,7 +118,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 const WM_CONFIG = {
     SUPABASE_URL: 'https://mtokobzepmfgxfnrrpep.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10b2tvYnplcG1mZ3hmbnJycGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NzA4MjUsImV4cCI6MjA4NzE0NjgyNX0.Exsg7_fhXYruLC2ZMPWr4byU-7OrrcM_hInW0tJ98Gw'
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10b2tvYnplcG1mZ3hmbnJycGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NzA4MjUsImV4cCI6MjA4NzE0NjgyNX0.Exsg7_fhXYruLC2ZMPWr4byU-7OrrcM_hInW0tJ98Gw',
+    API_URL: 'https://wingman-lyart-seven.vercel.app'
 };
 
 async function signInWithGoogleBackground() {
@@ -191,10 +192,50 @@ async function signInWithGoogleBackground() {
 
 
 /* =========================================================
+   AUTO SYNC — periodic background email sync
+========================================================= */
+
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.alarms.create('wm_auto_sync', { periodInMinutes: 30 });
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    chrome.alarms.create('wm_auto_sync', { periodInMinutes: 30 });
+});
+
+async function doBackgroundSync() {
+    const result = await new Promise(r => chrome.storage.local.get('wm_supabase_session', r));
+    const session = result.wm_supabase_session;
+    if (!session?.access_token || !session?.provider_token) return;
+
+    try {
+        await fetch(`${WM_CONFIG.API_URL}/gmail/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+                provider_token: session.provider_token,
+                provider_refresh_token: session.provider_refresh_token
+            })
+        });
+        console.log('[Wingman BG] Auto-sync complete');
+    } catch (err) {
+        console.error('[Wingman BG] Auto-sync failed:', err.message);
+    }
+}
+
+/* =========================================================
    ALARM HANDLER — fires notification when reminder is due
 ========================================================= */
 
 chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'wm_auto_sync') {
+        doBackgroundSync();
+        return;
+    }
+
     if (!alarm.name.startsWith("wm_reminder_")) return;
 
     chrome.storage.local.get("wm_reminders", ({ wm_reminders = [] }) => {
