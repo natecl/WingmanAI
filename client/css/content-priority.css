@@ -6,7 +6,6 @@
 
 tr.zA.wm-priority-row {
     box-shadow: inset 4px 0 0 var(--wm-ph-color, #ff6b6b) !important;
-    background-color: color-mix(in srgb, var(--wm-ph-color, #ff6b6b) 6%, transparent) !important;
 }
 
 /* =========================================================
