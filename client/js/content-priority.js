@@ -40,6 +40,7 @@ function savePriorities() {
 
 // threadId → color, populated from inbox email data
 const _contactPriorityThreads = new Map();
+let _lastInboxEmails = [];
 
 function _highlightContactRow(row, color) {
     if (!row) return;
@@ -69,8 +70,10 @@ function _clearContactHighlights() {
 // Called from content-sidebar.js after inbox emails load.
 // emails = [{ thread_id, from_name, from_email, subject, ... }]
 function applyContactPriorityFromEmails(emails) {
+    if (emails?.length) _lastInboxEmails = emails;
     _contactPriorityThreads.clear();
-    if (!_priorities.length || !emails?.length) return;
+    if (!_priorities.length || !_lastInboxEmails.length) return;
+    emails = _lastInboxEmails;
 
     for (const email of emails) {
         const senderName  = (email.from_name  || '').toLowerCase();
@@ -170,7 +173,7 @@ function renderPriorityList(sidebar) {
             p.color = color;
             await savePriorities();
             renderPriorityList(sidebar);
-            applyContactPriorityHighlights();
+            applyContactPriorityFromEmails();
         });
     });
 
@@ -184,7 +187,7 @@ function renderPriorityList(sidebar) {
             _priorities = _priorities.filter(p => p.id !== btn.dataset.id);
             await savePriorities();
             renderPriorityList(sidebar);
-            applyContactPriorityHighlights();
+            applyContactPriorityFromEmails();
         });
     });
 }
