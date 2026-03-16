@@ -1,11 +1,12 @@
 /**
  * BetterEmailV2 — Priority Contacts
- * Users add names/emails; matching Gmail rows get a colored left-border highlight.
+ * Highlights Gmail inbox rows whose sender matches a saved contact.
+ * Uses the same absolute-marker pattern as the existing _wmHighlightRow system.
  */
 
 const PRIORITY_COLORS = ['#ff6b6b', '#ff9f43', '#ffd32a', '#26de81', '#45aaf2', '#a29bfe'];
 
-let _priorities    = [];   // [{ id, value, color }]
+let _priorities    = [];
 let _selectedColor = PRIORITY_COLORS[0];
 
 /* =========================================================
@@ -31,6 +32,86 @@ function savePriorities() {
     });
 }
 
+/* =========================================================
+   GMAIL ROW HIGHLIGHTING
+   Uses the same absolute-marker-in-first-td pattern as _wmHighlightRow.
+   Matches by scanning the sender cell text content of each row.
+========================================================= */
+
+function _clearContactHighlights() {
+    document.querySelectorAll('[data-wm-contact-priority]').forEach(row => {
+        row.removeAttribute('data-wm-contact-priority');
+        const marker = row.querySelector('.wm-contact-priority-marker');
+        if (marker) marker.remove();
+        const firstTd = row.querySelector('td');
+        if (firstTd && !row.hasAttribute('data-wm-priority')) {
+            // Only remove position:relative if the inbox system didn't set it
+            firstTd.style.removeProperty('position');
+        }
+    });
+}
+
+function _getSenderText(row) {
+    // Gmail puts sender info in a span with an [email] attribute when available.
+    // Fall back to the full row text so we always get something.
+    const senderSpan = row.querySelector('span[email]');
+    if (senderSpan) {
+        return (senderSpan.getAttribute('email') + ' ' + senderSpan.textContent).toLowerCase();
+    }
+    // Fallback: use the full row text (same approach as _wmFindGmailRow strategy 5)
+    return row.textContent.toLowerCase();
+}
+
+function applyContactPriorityHighlights() {
+    _clearContactHighlights();
+    if (!_priorities.length) return;
+
+    document.querySelectorAll('tr.zA, tr.zE').forEach(row => {
+        // Skip rows already highlighted by the inbox-summary system
+        if (row.hasAttribute('data-wm-priority')) return;
+
+        const senderText = _getSenderText(row);
+
+        for (const p of _priorities) {
+            const val = p.value.toLowerCase().trim();
+            if (!val) continue;
+            if (!senderText.includes(val)) continue;
+
+            row.setAttribute('data-wm-contact-priority', p.id);
+
+            // Inject marker into the first <td> — same pattern as _wmHighlightRow
+            const firstTd = row.querySelector('td');
+            if (firstTd && !firstTd.querySelector('.wm-contact-priority-marker')) {
+                firstTd.style.setProperty('position', 'relative', 'important');
+                const marker = document.createElement('div');
+                marker.className = 'wm-contact-priority-marker';
+                marker.style.cssText = [
+                    'position:absolute',
+                    'left:0', 'top:0', 'bottom:0',
+                    'width:3px',
+                    `background:${p.color}`,
+                    'z-index:10',
+                    'pointer-events:none'
+                ].join(';');
+                firstTd.prepend(marker);
+            }
+            break;
+        }
+    });
+}
+
+// Debounced observer — re-applies when Gmail re-renders the list
+let _contactObserver    = null;
+let _contactHighlightTimer = null;
+
+function startContactPriorityObserver() {
+    if (_contactObserver) return;
+    _contactObserver = new MutationObserver(() => {
+        clearTimeout(_contactHighlightTimer);
+        _contactHighlightTimer = setTimeout(applyContactPriorityHighlights, 400);
+    });
+    _contactObserver.observe(document.body, { childList: true, subtree: true });
+}
 
 /* =========================================================
    RENDER SIDEBAR LIST
@@ -58,6 +139,7 @@ function renderPriorityList(sidebar) {
             _priorities = _priorities.filter(p => p.id !== btn.dataset.id);
             await savePriorities();
             renderPriorityList(sidebar);
+            applyContactPriorityHighlights();
         });
     });
 }
@@ -69,6 +151,8 @@ function renderPriorityList(sidebar) {
 async function wirePriorityContacts(sidebar) {
     await loadPriorities();
     renderPriorityList(sidebar);
+    applyContactPriorityHighlights();
+    startContactPriorityObserver();
 
     // Color swatches
     const swatchContainer = sidebar.querySelector('#wm-priority-swatches');
@@ -87,7 +171,6 @@ async function wirePriorityContacts(sidebar) {
         });
     }
 
-    // Add button
     const input  = sidebar.querySelector('#wm-priority-input');
     const addBtn = sidebar.querySelector('#wm-priority-add-btn');
 
@@ -98,6 +181,7 @@ async function wirePriorityContacts(sidebar) {
         await savePriorities();
         input.value = '';
         renderPriorityList(sidebar);
+        applyContactPriorityHighlights();
     }
 
     addBtn.addEventListener('click', addPriority);
