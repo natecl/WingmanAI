@@ -40,6 +40,18 @@ function _mediaEsc(str) {
 // Cache fetched files so filter buttons don't re-fetch
 let _mediaCache = [];
 let _mediaActiveFilter = 'all';
+let _mediaActiveSort = 'newest';
+
+function _mediaSortFiles(files) {
+    const arr = [...files];
+    switch (_mediaActiveSort) {
+        case 'newest': return arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        case 'oldest': return arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        case 'name':   return arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        case 'size':   return arr.sort((a, b) => (b.size || 0) - (a.size || 0));
+        default:       return arr;
+    }
+}
 let _importantMediaIds = new Set();
 
 function _loadImportantMedia() {
@@ -74,7 +86,7 @@ function renderMediaList(sidebar, files) {
     const empty = sidebar.querySelector('#wm-media-empty');
     if (!list) return;
 
-    const filtered = files.filter(f => _mediaMatchesFilter(f, _mediaActiveFilter));
+    const filtered = _mediaSortFiles(files.filter(f => _mediaMatchesFilter(f, _mediaActiveFilter)));
 
     if (!filtered.length) {
         list.innerHTML = '';
@@ -306,6 +318,16 @@ function wireMediaTab(sidebar) {
         if (tab.dataset.tab === 'media') {
             tab.addEventListener('click', () => loadMediaFiles(sidebar));
         }
+    });
+
+    // Sort buttons
+    sidebar.querySelectorAll('.wm-media-sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            sidebar.querySelectorAll('.wm-media-sort-btn').forEach(b => b.classList.remove('wm-media-sort-active'));
+            btn.classList.add('wm-media-sort-active');
+            _mediaActiveSort = btn.dataset.sort;
+            renderMediaList(sidebar, _mediaCache);
+        });
     });
 
     // Filter buttons

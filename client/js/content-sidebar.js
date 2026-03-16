@@ -250,6 +250,13 @@ function buildSidebarHTML() {
                     </button>
                     <input type="file" id="wm-media-file-input" accept=".pdf,image/*" style="display:none;">
                 </div>
+                <div class="wm-media-sort-row">
+                    <span class="wm-media-sort-label">Sort:</span>
+                    <button class="wm-media-sort-btn wm-media-sort-active" data-sort="newest">Newest</button>
+                    <button class="wm-media-sort-btn" data-sort="oldest">Oldest</button>
+                    <button class="wm-media-sort-btn" data-sort="name">Name</button>
+                    <button class="wm-media-sort-btn" data-sort="size">Size</button>
+                </div>
                 <div class="wm-media-filters" id="wm-media-filters">
                     <button class="wm-media-filter-btn wm-media-filter-active" data-filter="all">All</button>
                     <button class="wm-media-filter-btn wm-media-filter-important" data-filter="important">⭐ Important</button>

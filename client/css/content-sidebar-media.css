@@ -47,6 +47,44 @@
 .wm-media-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 /* =========================================================
+   SORT ROW
+========================================================= */
+
+.wm-media-sort-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.45rem;
+}
+
+.wm-media-sort-label {
+    font-size: 0.72rem;
+    color: var(--wm-text-dim);
+    margin-right: 0.1rem;
+    flex-shrink: 0;
+}
+
+.wm-media-sort-btn {
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: var(--wm-text-dim);
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 2px 7px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.wm-media-sort-btn:hover { background: rgba(255,255,255,0.07); color: var(--wm-text); }
+
+.wm-media-sort-btn.wm-media-sort-active {
+    background: rgba(142, 125, 255, 0.15);
+    color: var(--wm-primary);
+    font-weight: 600;
+}
+
+/* =========================================================
    FILTER BUTTONS
 ========================================================= */
 
