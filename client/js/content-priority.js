@@ -137,11 +137,50 @@ function renderPriorityList(sidebar) {
 
     list.innerHTML = _priorities.map(p => `
         <div class="wm-priority-item" data-id="${p.id}">
-            <span class="wm-priority-dot" style="background:${p.color}"></span>
+            <button class="wm-priority-dot wm-priority-dot-btn" data-id="${p.id}"
+                    style="background:${p.color}" title="Change color"></button>
+            <div class="wm-priority-color-picker" id="wm-pc-${p.id}" style="display:none;">
+                ${PRIORITY_COLORS.map(c => `
+                    <button class="wm-priority-swatch${c === p.color ? ' wm-priority-swatch-active' : ''}"
+                            data-color="${c}" data-pid="${p.id}" style="background:${c}"></button>
+                `).join('')}
+            </div>
             <span class="wm-priority-value">${escapeHTML(p.value)}</span>
             <button class="wm-priority-remove" data-id="${p.id}" title="Remove">✕</button>
         </div>
     `).join('');
+
+    // Dot click → toggle color picker
+    list.querySelectorAll('.wm-priority-dot-btn').forEach(dot => {
+        dot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const picker = list.querySelector(`#wm-pc-${dot.dataset.id}`);
+            const isOpen = picker.style.display !== 'none';
+            // Close all pickers first
+            list.querySelectorAll('.wm-priority-color-picker').forEach(p => p.style.display = 'none');
+            if (!isOpen) picker.style.display = 'flex';
+        });
+    });
+
+    // Swatch click → update color
+    list.querySelectorAll('.wm-priority-color-picker .wm-priority-swatch').forEach(sw => {
+        sw.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const pid = sw.dataset.pid;
+            const color = sw.dataset.color;
+            const p = _priorities.find(p => p.id === pid);
+            if (!p) return;
+            p.color = color;
+            await savePriorities();
+            renderPriorityList(sidebar);
+            applyContactPriorityHighlights();
+        });
+    });
+
+    // Click outside closes all pickers
+    document.addEventListener('click', () => {
+        list.querySelectorAll('.wm-priority-color-picker').forEach(p => p.style.display = 'none');
+    }, { once: true });
 
     list.querySelectorAll('.wm-priority-remove').forEach(btn => {
         btn.addEventListener('click', async () => {

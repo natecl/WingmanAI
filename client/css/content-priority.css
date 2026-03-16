@@ -97,13 +97,37 @@
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--wm-border);
     border-radius: 8px;
+    position: relative;
 }
 
-.wm-priority-dot {
-    width: 10px;
-    height: 10px;
+.wm-priority-dot-btn {
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
+    border: 2px solid transparent;
     flex-shrink: 0;
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.15s, border-color 0.15s;
+}
+
+.wm-priority-dot-btn:hover {
+    transform: scale(1.25);
+    border-color: var(--wm-text);
+}
+
+.wm-priority-color-picker {
+    display: none;
+    gap: 0.3rem;
+    align-items: center;
+    padding: 4px 6px;
+    background: var(--wm-bg, #1e1e2e);
+    border: 1px solid var(--wm-border);
+    border-radius: 8px;
+    position: absolute;
+    left: 24px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
 .wm-priority-value {
