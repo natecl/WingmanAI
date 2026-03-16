@@ -41,11 +41,11 @@ function savePriorities() {
 function _clearContactHighlights() {
     document.querySelectorAll('[data-wm-contact-priority]').forEach(row => {
         row.removeAttribute('data-wm-contact-priority');
+        row.style.removeProperty('box-shadow');
         const marker = row.querySelector('.wm-contact-priority-marker');
         if (marker) marker.remove();
         const firstTd = row.querySelector('td');
         if (firstTd && !row.hasAttribute('data-wm-priority')) {
-            // Only remove position:relative if the inbox system didn't set it
             firstTd.style.removeProperty('position');
         }
     });
@@ -79,7 +79,11 @@ function applyContactPriorityHighlights() {
 
             row.setAttribute('data-wm-contact-priority', p.id);
 
-            // Inject marker into the first <td> — same pattern as _wmHighlightRow
+            // Primary: box-shadow on the <tr> itself — same inline-style approach
+            // as _wmHighlightRow, which works even when td has overflow:hidden
+            row.style.setProperty('box-shadow', `inset 4px 0 0 ${p.color}`, 'important');
+
+            // Belt-and-suspenders: also inject a marker div into the first <td>
             const firstTd = row.querySelector('td');
             if (firstTd && !firstTd.querySelector('.wm-contact-priority-marker')) {
                 firstTd.style.setProperty('position', 'relative', 'important');
@@ -88,7 +92,7 @@ function applyContactPriorityHighlights() {
                 marker.style.cssText = [
                     'position:absolute',
                     'left:0', 'top:0', 'bottom:0',
-                    'width:3px',
+                    'width:4px',
                     `background:${p.color}`,
                     'z-index:10',
                     'pointer-events:none'
