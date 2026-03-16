@@ -37,6 +37,53 @@ function _mediaEsc(str) {
    LOAD & RENDER
 ========================================================= */
 
+// Cache fetched files so filter buttons don't re-fetch
+let _mediaCache = [];
+let _mediaActiveFilter = 'all';
+
+function _mediaMatchesFilter(file, filter) {
+    if (filter === 'all')   return true;
+    if (filter === 'pdf')   return file.type === 'application/pdf';
+    if (filter === 'image') return file.type && file.type.startsWith('image/');
+    if (filter === 'jpeg')  return file.type === 'image/jpeg' || file.type === 'image/jpg';
+    if (filter === 'png')   return file.type === 'image/png';
+    return true;
+}
+
+function renderMediaList(sidebar, files) {
+    const list  = sidebar.querySelector('#wm-media-list');
+    const empty = sidebar.querySelector('#wm-media-empty');
+    if (!list) return;
+
+    const filtered = files.filter(f => _mediaMatchesFilter(f, _mediaActiveFilter));
+
+    if (!filtered.length) {
+        list.innerHTML = '';
+        if (empty) empty.style.display = 'flex';
+        return;
+    }
+
+    if (empty) empty.style.display = 'none';
+    list.innerHTML = filtered.map(renderMediaItem).join('');
+
+    list.querySelectorAll('.wm-media-delete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const item = btn.closest('.wm-media-item');
+            if (!item) return;
+            btn.disabled = true;
+            await deleteMediaFile(sidebar, item.dataset.id, item);
+        });
+    });
+
+    list.querySelectorAll('.wm-media-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const url = item.dataset.url;
+            if (url) chrome.runtime.sendMessage({ type: 'OPEN_TAB', url });
+        });
+    });
+}
+
 async function loadMediaFiles(sidebar, search = '') {
     const list  = sidebar.querySelector('#wm-media-list');
     const empty = sidebar.querySelector('#wm-media-empty');
@@ -54,35 +101,8 @@ async function loadMediaFiles(sidebar, search = '') {
         });
 
         if (!res.ok) throw new Error(res.data?.error || 'Request failed');
-        const files = res.data?.files || [];
-
-        if (!files.length) {
-            list.innerHTML = '';
-            if (empty) empty.style.display = 'flex';
-            return;
-        }
-
-        if (empty) empty.style.display = 'none';
-        list.innerHTML = files.map(renderMediaItem).join('');
-
-        // Wire delete buttons
-        list.querySelectorAll('.wm-media-delete-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const item = btn.closest('.wm-media-item');
-                if (!item) return;
-                btn.disabled = true;
-                await deleteMediaFile(sidebar, item.dataset.id, item, search);
-            });
-        });
-
-        // Wire row clicks — open file in new tab
-        list.querySelectorAll('.wm-media-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const url = item.dataset.url;
-                if (url) chrome.runtime.sendMessage({ type: 'OPEN_TAB', url });
-            });
-        });
+        _mediaCache = res.data?.files || [];
+        renderMediaList(sidebar, _mediaCache);
 
     } catch (err) {
         console.error('[Media] Load failed:', err);
@@ -176,6 +196,10 @@ async function uploadMediaFile(sidebar, file) {
                 uploadBtn.disabled = false;
                 if (response && response.ok) {
                     setStatus(`Uploaded: ${file.name}`);
+                    _mediaActiveFilter = 'all';
+                    sidebar.querySelectorAll('.wm-media-filter-btn').forEach(b => {
+                        b.classList.toggle('wm-media-filter-active', b.dataset.filter === 'all');
+                    });
                     loadMediaFiles(sidebar, searchVal);
                 } else {
                     setStatus(response?.data?.error || 'Upload failed.', true);
@@ -194,7 +218,7 @@ async function uploadMediaFile(sidebar, file) {
    DELETE
 ========================================================= */
 
-async function deleteMediaFile(sidebar, id, itemEl, search) {
+async function deleteMediaFile(sidebar, id, itemEl) {
     try {
         const token = await getContentAccessToken();
         const res   = await apiFetch(`${getApiBase()}/user/media/${encodeURIComponent(id)}`, {
@@ -202,6 +226,9 @@ async function deleteMediaFile(sidebar, id, itemEl, search) {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error(res.data?.error || 'Delete failed');
+
+        // Remove from cache
+        _mediaCache = _mediaCache.filter(f => f.id !== id);
 
         itemEl.style.transition = 'opacity 0.25s, max-height 0.25s';
         itemEl.style.overflow   = 'hidden';
@@ -232,6 +259,16 @@ function wireMediaTab(sidebar) {
         if (tab.dataset.tab === 'media') {
             tab.addEventListener('click', () => loadMediaFiles(sidebar));
         }
+    });
+
+    // Filter buttons
+    sidebar.querySelectorAll('.wm-media-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            sidebar.querySelectorAll('.wm-media-filter-btn').forEach(b => b.classList.remove('wm-media-filter-active'));
+            btn.classList.add('wm-media-filter-active');
+            _mediaActiveFilter = btn.dataset.filter;
+            renderMediaList(sidebar, _mediaCache);
+        });
     });
 
     // Search — debounced

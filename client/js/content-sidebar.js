@@ -233,6 +233,13 @@ function buildSidebarHTML() {
                     </button>
                     <input type="file" id="wm-media-file-input" accept=".pdf,image/*" style="display:none;">
                 </div>
+                <div class="wm-media-filters" id="wm-media-filters">
+                    <button class="wm-media-filter-btn wm-media-filter-active" data-filter="all">All</button>
+                    <button class="wm-media-filter-btn" data-filter="pdf">PDF</button>
+                    <button class="wm-media-filter-btn" data-filter="image">Images</button>
+                    <button class="wm-media-filter-btn" data-filter="jpeg">JPEG</button>
+                    <button class="wm-media-filter-btn" data-filter="png">PNG</button>
+                </div>
                 <div class="wm-media-upload-status" id="wm-media-upload-status"></div>
                 <div class="wm-media-list" id="wm-media-list"></div>
                 <div class="wm-media-empty" id="wm-media-empty">

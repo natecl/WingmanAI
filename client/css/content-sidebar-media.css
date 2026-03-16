@@ -47,6 +47,42 @@
 .wm-media-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 /* =========================================================
+   FILTER BUTTONS
+========================================================= */
+
+.wm-media-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+}
+
+.wm-media-filter-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--wm-border);
+    border-radius: 20px;
+    color: var(--wm-text-dim);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.wm-media-filter-btn:hover {
+    background: rgba(142, 125, 255, 0.1);
+    border-color: var(--wm-primary);
+    color: var(--wm-text);
+}
+
+.wm-media-filter-btn.wm-media-filter-active {
+    background: rgba(142, 125, 255, 0.18);
+    border-color: var(--wm-primary);
+    color: var(--wm-primary);
+    font-weight: 600;
+}
+
+/* =========================================================
    UPLOAD STATUS
 ========================================================= */
 
