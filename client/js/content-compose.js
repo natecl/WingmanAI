@@ -365,6 +365,7 @@ function trySendButton(composeBox) {
         if (!currentThreadPath) watchForSentThread(pendingThread);
         // Extract recipient for smart timing
         const toEmail = composeBox.querySelector('[email]')?.getAttribute('email') || null;
+        console.log('[Wingman] send detected — toEmail:', toEmail, '| subject:', subject);
         classifyAndHandleSend(subject, bodySnippet, currentThreadId, pendingThread, toEmail);
     });
 

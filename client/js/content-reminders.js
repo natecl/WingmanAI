@@ -458,20 +458,23 @@ function watchForSentThread(pendingThread) {
 
 /**
  * Fetch reply timing data for a recipient email (GET /ai/reply-timing).
- * Returns the tip string or null on failure/no data.
+ * Returns the data object or null on failure/no data.
  */
 function _fetchReplyTiming(recipientEmail) {
     return new Promise((resolve) => {
         chrome.storage.local.get('wm_supabase_session', ({ wm_supabase_session }) => {
             const token = wm_supabase_session?.access_token;
-            if (!token) { resolve(null); return; }
-            const url = `https://wingman-lyart-seven.vercel.app/ai/reply-timing?recipientEmail=${encodeURIComponent(recipientEmail)}`;
+            if (!token) { console.log('[Wingman] reply-timing: no auth token'); resolve(null); return; }
+            const base = typeof getApiBase === 'function' ? getApiBase() : 'https://wingman-lyart-seven.vercel.app';
+            const url = `${base}/ai/reply-timing?recipientEmail=${encodeURIComponent(recipientEmail)}`;
+            console.log('[Wingman] fetching reply-timing for', recipientEmail);
             chrome.runtime.sendMessage({
                 type: 'API_FETCH',
                 url,
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}` }
             }, (response) => {
+                console.log('[Wingman] reply-timing response:', response);
                 resolve(response?.ok && response.data?.tip ? response.data : null);
             });
         });
