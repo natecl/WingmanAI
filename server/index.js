@@ -1,4 +1,18 @@
 require('dotenv').config({ override: true });
+
+// ── Observability ────────────────────────────────────────────────────────────
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+    Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        environment: process.env.NODE_ENV || 'production',
+        tracesSampleRate: 0.1
+    });
+}
+const logger = require('./lib/logger');
+const metrics = require('./lib/metrics');
+// ─────────────────────────────────────────────────────────────────────────────
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -75,6 +89,12 @@ const _syncInProgress = new Set();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Request logging
+app.use((req, _res, next) => {
+    logger.info({ method: req.method, url: req.url }, 'request');
+    next();
+});
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -288,35 +308,45 @@ app.post('/scrape-emails', requireAuth, async (req, res) => {
         const { normalized, domain } = normalizePrompt(prompt);
         const cacheKey = generateCacheKey(domain, normalized);
 
+        metrics.inc('scrape', 'total');
+
         // Step 2: Check prompt cache (< 3 days old)
         const cachedResult = await checkPromptCache(supabase, cacheKey);
         if (cachedResult) {
+            metrics.inc('scrape', 'cache_hits');
+            logger.info({ userId: req.userId, prompt: normalized, source: 'cache' }, 'scrape_complete');
             return res.json({ results: cachedResult, source: 'cache' });
         }
 
         // Step 3: Check email_leads table for existing domain data
         const existingLeads = await checkEmailLeads(supabase, domain);
         if (existingLeads && existingLeads.length >= 10) {
+            metrics.inc('scrape', 'cache_hits');
+            logger.info({ userId: req.userId, prompt: normalized, source: 'leads_cache' }, 'scrape_complete');
             return res.json({ results: existingLeads, source: 'leads_cache' });
         }
 
         // Step 4: Full pipeline - Firecrawl Search → Scrape
+        metrics.inc('scrape', 'live_runs');
         const searchedUrls = await searchWithFirecrawl(firecrawl, prompt);
         const scrapedResults = await scrapeEmails(firecrawl, searchedUrls);
 
         // Step 5: Save results to database
         await upsertResults(supabase, domain, normalized, cacheKey, scrapedResults, searchedUrls);
 
+        logger.info({ userId: req.userId, prompt: normalized, found: scrapedResults.length, source: 'live' }, 'scrape_complete');
         res.json({ results: scrapedResults, source: 'live' });
     } catch (error) {
-        console.error('Scrape error:', error);
+        metrics.inc('scrape', 'errors');
+        logger.error({ userId: req.userId, err: error.message }, 'scrape_error');
+        Sentry.captureException(error, { extra: { userId: req.userId } });
         res.status(500).json({ error: error.message || 'Failed to process scraping request' });
     }
 });
 
 // Gmail Sync endpoint
 app.post('/gmail/sync', requireAuth, async (req, res) => {
-    console.log(`[Sync Debug] Received sync request from userId: ${req.userId}. Body keys:`, Object.keys(req.body));
+    logger.info({ userId: req.userId }, 'gmail_sync_start');
     try {
         const { provider_token, provider_refresh_token } = req.body;
 
@@ -345,11 +375,21 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
         // Get user's current history_id for incremental sync
         const userData = await getGmailTokens(supabase, req.userId);
         const historyId = userData?.history_id || null;
-        console.log(`[Sync Debug] Stored history_id for user: ${historyId}`);
+        const lastSyncedAt = userData?.last_synced_at ? new Date(userData.last_synced_at) : null;
+
+        // Proactively fall back to full sync if history_id is > 6 days old
+        // (Gmail invalidates history after 7 days)
+        const effectiveHistoryId = (lastSyncedAt && (Date.now() - lastSyncedAt.getTime()) > 6 * 24 * 60 * 60 * 1000)
+            ? null
+            : historyId;
+
+        if (historyId && !effectiveHistoryId) {
+            logger.warn({ userId: req.userId }, 'history_id_stale_falling_back_to_full_sync');
+        }
 
         // Fetch message IDs from Gmail
-        const { messageIds } = await fetchMessageIds(provider_token, historyId);
-        console.log(`[Sync Debug] fetchMessageIds returned ${messageIds.length} IDs.`);
+        const { messageIds } = await fetchMessageIds(provider_token, effectiveHistoryId);
+        logger.info({ userId: req.userId, count: messageIds.length, incremental: !!effectiveHistoryId }, 'gmail_message_ids_fetched');
 
         // Send immediate response to prevent Chrome MV3 service worker timeout (30s limit)
         res.json({ processed: 0, queued: messageIds.length, status: 'Background sync started' });
@@ -359,8 +399,10 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
             let processed = 0;
             let queued = 0;
             let newHistoryId = null;
+            const syncTimer = metrics.startTimer();
             try {
-                console.log(`[Sync Debug] Starting background processing for ${messageIds.length} messages...`);
+                logger.info({ userId: req.userId, total: messageIds.length }, 'sync_background_start');
+                metrics.inc('sync', 'total');
 
                 for (const msgId of messageIds) {
                     try {
@@ -405,10 +447,12 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
                         if (result === 'new' || result === 'changed') queued++;
                     } catch (msgErr) {
                         if (msgErr.code === 'GMAIL_AUTH_ERROR') {
-                            console.warn(`[Sync] Gmail token expired for user ${req.userId} — stopping batch.`);
+                            logger.warn({ userId: req.userId }, 'sync_gmail_token_expired');
+                            metrics.inc('sync', 'auth_errors');
                             break;
                         }
-                        console.error(`Failed to process message ${msgId}:`, msgErr.message);
+                        logger.error({ userId: req.userId, msgId, err: msgErr.message }, 'sync_message_error');
+                        metrics.inc('sync', 'errors');
                     }
                 }
 
@@ -426,15 +470,20 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
                     }).eq('id', req.userId);
                 }
 
-                console.log(`[Sync Debug] Background processing complete. Processed: ${processed}, Queued: ${queued}`);
+                metrics.inc('sync', 'messages_processed', processed);
+                metrics.inc('sync', 'messages_queued', queued);
+                logger.info({ userId: req.userId, processed, queued, duration_ms: syncTimer() }, 'sync_complete');
             } catch (bgErr) {
-                console.error(`[Sync] Background processing error for user ${req.userId}:`, bgErr.message);
+                logger.error({ userId: req.userId, err: bgErr.message }, 'sync_background_error');
+                metrics.inc('sync', 'errors');
+                Sentry.captureException(bgErr, { extra: { userId: req.userId } });
             } finally {
                 _syncInProgress.delete(req.userId);
             }
         }, 0);
     } catch (error) {
-        console.error('Gmail sync error:', error);
+        logger.error({ userId: req.userId, err: error.message }, 'sync_error');
+        Sentry.captureException(error, { extra: { userId: req.userId } });
         res.status(500).json({ error: 'Failed to sync emails' });
     }
 });
@@ -468,23 +517,29 @@ app.post('/search', requireAuth, async (req, res) => {
             } : undefined
         });
 
+        const searchTimer = metrics.startTimer();
+        metrics.inc('search', 'total');
+
         // Embed the query
         const queryVector = await embedQuery(openai, query.trim());
-        console.log(`[Search Debug] Embedded query, dimensions: ${queryVector ? queryVector.length : 'null'}`);
 
         // Run vector search
-        console.log(`[Search Debug] Running vectorSearch for userId: ${req.userId} with filters:`, filters);
         const rawResults = await vectorSearch(supabase, req.userId, queryVector, filters || {});
-        console.log(`[Search Debug] rawResults length from Supabase: ${rawResults ? rawResults.length : 'null'}`);
 
         // Group, rank, and return
         const results = groupAndRankResults(rawResults, query);
-        console.log(`[Search Debug] Final grouped results count: ${results.length}`);
+
+        const duration = searchTimer();
+        metrics.recordLatency('search', duration);
+        metrics.inc('search', 'total_results', results.length);
+        logger.info({ userId: req.userId, query: query.trim(), raw: rawResults.length, results: results.length, duration_ms: duration }, 'search_complete');
 
         res.json({ results });
     } catch (error) {
-        console.error('Search error:', error);
-        res.status(500).json({ error: 'Search failed' });
+        metrics.inc('search', 'errors');
+        logger.error({ userId: req.userId, err: error.message }, 'search_error');
+        Sentry.captureException(error, { extra: { userId: req.userId } });
+        res.status(500).json({ error: error.message || 'Search failed' });
     }
 });
 
@@ -1244,14 +1299,33 @@ app.delete('/user/media/:id', requireAuth, async (req, res) => {
 
         res.json({ success: true });
     } catch (err) {
-        console.error('[Media delete] Error:', err);
+        logger.error({ userId: req.userId, id: req.params.id, err: err.message }, 'media_delete_error');
         res.status(500).json({ error: 'Failed to delete file' });
     }
 });
 
+// ── Metrics endpoint ─────────────────────────────────────────────────────────
+// Internal use — returns in-memory counters and averages.
+// Protect with METRICS_SECRET env var if exposed publicly.
+app.get('/metrics', (req, res) => {
+    const secret = process.env.METRICS_SECRET;
+    if (secret && req.headers['x-metrics-secret'] !== secret) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    res.json(metrics.snapshot());
+});
+
+// ── Global error handler ─────────────────────────────────────────────────────
+// Sentry must be last before the listen call.
+app.use((err, req, res, _next) => {
+    logger.error({ url: req.url, err: err.message }, 'unhandled_error');
+    Sentry.captureException(err);
+    res.status(500).json({ error: 'Internal server error' });
+});
+
 // Start server
 app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+    logger.info({ port }, 'server_started');
 });
 
 module.exports = app;

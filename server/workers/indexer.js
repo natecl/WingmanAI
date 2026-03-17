@@ -12,6 +12,8 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 const { createClient } = require('@supabase/supabase-js');
 const OpenAI = require('openai');
 const { chunkText, buildSummaryText, embedTexts } = require('../services/embeddingService');
+const logger = require('../lib/logger');
+const metrics = require('../lib/metrics');
 
 const POLL_INTERVAL_MS = 5000; // 5 seconds
 
@@ -38,7 +40,8 @@ const openai = new OpenAI({
 async function processJob(job) {
     const { job_id, job_message_id, job_user_id } = job;
 
-    console.log(`Processing job ${job_id} (message ${job_message_id})`);
+    const jobTimer = metrics.startTimer();
+    logger.info({ job_id, message_id: job_message_id, user_id: job_user_id }, 'job_start');
 
     try {
         // Fetch the message
@@ -62,13 +65,16 @@ async function processJob(job) {
         const textsToEmbed = [summaryText, ...chunks].filter(t => t.trim());
 
         if (textsToEmbed.length === 0) {
-            console.log(`Job ${job_id}: No text to embed, marking done`);
+            logger.warn({ job_id }, 'job_no_text_skip');
             await markJobDone(job_id);
             return;
         }
 
         // Embed all texts in one batch
+        const embedTimer = metrics.startTimer();
         const embeddings = await embedTexts(openai, textsToEmbed);
+        const embedMs = embedTimer();
+        metrics.recordLatency('embedding', embedMs);
 
         // Delete old vectors for this message (re-indexing)
         await supabase
@@ -95,10 +101,13 @@ async function processJob(job) {
         }
 
         await markJobDone(job_id);
-        console.log(`Job ${job_id} done — ${vectorRows.length} vectors stored`);
+        metrics.inc('embedding', 'jobs_processed');
+        metrics.inc('embedding', 'texts_embedded', vectorRows.length);
+        logger.info({ job_id, vectors: vectorRows.length, embed_ms: embedMs, total_ms: jobTimer() }, 'job_done');
 
     } catch (err) {
-        console.error(`Job ${job_id} error:`, err.message);
+        metrics.inc('embedding', 'errors');
+        logger.error({ job_id, err: err.message }, 'job_error');
         await markJobError(job_id, err.message);
     }
 }
@@ -143,7 +152,7 @@ async function poll() {
         await processJob(job);
 
     } catch (err) {
-        console.error('Poll error:', err.message);
+        logger.error({ err: err.message }, 'poll_error');
     }
 }
 
@@ -151,7 +160,7 @@ async function poll() {
  * Start the worker.
  */
 async function start() {
-    console.log('Indexing worker started. Polling every', POLL_INTERVAL_MS / 1000, 'seconds');
+    logger.info({ poll_interval_s: POLL_INTERVAL_MS / 1000 }, 'worker_started');
 
     // Run immediately, then poll
     await poll();
