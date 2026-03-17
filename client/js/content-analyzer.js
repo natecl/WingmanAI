@@ -170,21 +170,24 @@ function wireAnalyzer(sidebar) {
  * Gmail renders accepted recipients as chips with an [email] attribute.
  */
 function _getComposeRecipient(editor) {
-    if (!editor) return null;
-    const box = editor.closest('div[role="dialog"]') ||
-                editor.closest('.M9') ||
-                editor.closest('.ip') ||
-                editor.closest('.aDh') ||
-                editor.closest('.nH.Hd');
-    if (!box) return null;
+    // Try within the editor's compose container first
+    if (editor) {
+        const box = editor.closest('div[role="dialog"]') ||
+                    editor.closest('.M9') ||
+                    editor.closest('.ip') ||
+                    editor.closest('.aDh') ||
+                    editor.closest('.nH.Hd');
+        if (box) {
+            const chip = box.querySelector('[email]');
+            if (chip) return chip.getAttribute('email');
+            const toInput = box.querySelector('input[aria-label="To"], input[name="to"]');
+            if (toInput && toInput.value.includes('@')) return toInput.value.trim();
+        }
+    }
 
-    // Accepted recipient chips carry an [email] attribute
-    const chip = box.querySelector('[email]');
-    if (chip) return chip.getAttribute('email');
-
-    // Fallback: raw value in the To input before a chip is formed
-    const toInput = box.querySelector('input[aria-label="To"], input[name="to"]');
-    if (toInput && toInput.value.includes('@')) return toInput.value.trim();
+    // Fallback: search any open compose dialog in the page
+    const anyChip = document.querySelector('div[role="dialog"] [email]');
+    if (anyChip) return anyChip.getAttribute('email');
 
     return null;
 }
