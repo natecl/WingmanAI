@@ -266,11 +266,11 @@ app.post('/scrape-emails', requireAuth, async (req, res) => {
         }
 
         // Validate required env vars
-        const requiredVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+        const requiredVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'Firecrawl_Api_Key'];
         for (const v of requiredVars) {
             if (!process.env[v]) {
                 console.error(`Missing env var: ${v}`);
-                return res.status(500).json({ error: 'Server configuration error' });
+                return res.status(500).json({ error: `Server misconfiguration: missing ${v}` });
             }
         }
 
@@ -310,7 +310,7 @@ app.post('/scrape-emails', requireAuth, async (req, res) => {
         res.json({ results: scrapedResults, source: 'live' });
     } catch (error) {
         console.error('Scrape error:', error);
-        res.status(500).json({ error: 'Failed to process scraping request' });
+        res.status(500).json({ error: error.message || 'Failed to process scraping request' });
     }
 });
 
