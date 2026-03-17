@@ -66,7 +66,10 @@ function wireAnalyzer(sidebar) {
             });
 
             if (res.ok) {
-                renderSidebarResults(resultsArea, res.data.response);
+                renderSidebarResults(resultsArea, res.data.response, {
+                    historyCount: res.data.historyCount || 0,
+                    recipientEmail
+                });
             } else {
                 showSidebarError(resultsArea, res.data.error || "Analysis failed.");
             }

@@ -122,6 +122,34 @@
    SIDEBAR: RESULTS CARDS (analysis results)
 ========================================================= */
 
+/* ── History context badge ───────────────────────────────── */
+.wm-history-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    padding: 7px 11px;
+    border-radius: 8px;
+    margin-bottom: 2px;
+    animation: wm-cardSlideIn 0.25s ease both;
+    line-height: 1.4;
+}
+
+.wm-history-badge--found {
+    background: rgba(52, 168, 83, 0.08);
+    border: 1px solid rgba(52, 168, 83, 0.25);
+    color: #34a853;
+}
+
+.wm-history-badge--empty {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--wm-border);
+    color: var(--wm-text-dim);
+}
+
+.wm-history-badge span { flex: 1; }
+.wm-history-badge strong { font-weight: 700; }
+
 /* ── Score badge ─────────────────────────────────────────── */
 .wm-score-badge {
     display: flex;

@@ -79,7 +79,7 @@ function _parseScore(sections) {
     return m ? parseInt(m[1], 10) : null;
 }
 
-function renderSidebarResults(container, raw) {
+function renderSidebarResults(container, raw, meta) {
     container.innerHTML = "";
 
     let jsonStr = raw.trim();
@@ -93,6 +93,20 @@ function renderSidebarResults(container, raw) {
 
         const grid = document.createElement("div");
         grid.className = "wm-sidebar-results-grid";
+
+        // History context badge
+        if (meta?.recipientEmail) {
+            const hBadge = document.createElement('div');
+            hBadge.className = 'wm-history-badge';
+            if (meta.historyCount > 0) {
+                hBadge.innerHTML = `📬 <span>Analysis includes <strong>${meta.historyCount}</strong> past email${meta.historyCount !== 1 ? 's' : ''} with ${escapeHTML(meta.recipientEmail)}</span>`;
+                hBadge.classList.add('wm-history-badge--found');
+            } else {
+                hBadge.innerHTML = `📭 <span>No email history found with ${escapeHTML(meta.recipientEmail)} — sync your inbox to enable this</span>`;
+                hBadge.classList.add('wm-history-badge--empty');
+            }
+            grid.appendChild(hBadge);
+        }
 
         // Score badge header
         if (score !== null) {

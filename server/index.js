@@ -184,11 +184,12 @@ app.post('/analyze-email', requireAuth, async (req, res) => {
                     .slice(0, 5);
 
                 if (past.length > 0) {
-                    emailHistoryBlock = `\n\nEmail history with ${recipientEmail} (${past.length} past messages):\n` +
+                    emailHistoryBlock = `\n\nEmail history with ${recipientEmail} (${past.length} past messages found):\n` +
                         past.map(e => {
-                            const snippet = (e.body_text || '').substring(0, 120).replace(/\n/g, ' ');
-                            return `- Subject: "${e.subject}" | From: ${e.from_name || 'you'} | "${snippet}..."`;
-                        }).join('\n');
+                            const snippet = (e.body_text || '').substring(0, 200).replace(/\n/g, ' ');
+                            return `- Subject: "${e.subject}" | From: ${e.from_name || 'you'} | Body: "${snippet}"`;
+                        }).join('\n') +
+                        `\n\nIMPORTANT: You MUST reference this history in your Tone, Suggestions, and Verdict sections. Mention specific subjects or patterns you noticed.`;
                 }
             } catch (histErr) {
                 logger.warn({ err: histErr.message }, 'email_history_fetch_failed');
@@ -231,7 +232,7 @@ Return ONLY the JSON array — no markdown fences, no extra text.`;
         }
 
         const aiResponse = data.choices[0].message.content;
-        res.json({ response: aiResponse });
+        res.json({ response: aiResponse, historyCount: emailHistoryBlock ? (emailHistoryBlock.match(/^- Subject:/gm) || []).length : 0 });
     } catch (error) {
         console.error('Error generating response:', error);
         res.status(500).json({ error: 'Failed to generate response' });
