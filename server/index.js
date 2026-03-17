@@ -314,6 +314,65 @@ app.post('/ai/summarize-email', requireAuth, async (req, res) => {
     }
 });
 
+// Smart Reply Timing — analyze when a recipient typically sends emails
+app.get('/ai/reply-timing', requireAuth, async (req, res) => {
+    const { recipientEmail } = req.query;
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+        return res.status(400).json({ error: 'recipientEmail required' });
+    }
+
+    try {
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+        const { data: theirEmails } = await supabase
+            .from('gmail_messages')
+            .select('internal_date')
+            .eq('user_id', req.userId)
+            .ilike('from_email', `%${recipientEmail}%`)
+            .order('internal_date', { ascending: false })
+            .limit(60);
+
+        if (!theirEmails || theirEmails.length < 3) {
+            return res.json({ tip: null, dataPoints: theirEmails?.length || 0 });
+        }
+
+        const hourCounts = new Array(24).fill(0);
+        const dayCounts  = new Array(7).fill(0);
+        const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+        for (const email of theirEmails) {
+            const d = new Date(email.internal_date);
+            hourCounts[d.getHours()]++;
+            dayCounts[d.getDay()]++;
+        }
+
+        // Find the 2-hour window with the most activity
+        let bestStart = 0, bestCount = 0;
+        for (let h = 0; h < 24; h++) {
+            const count = hourCounts[h] + hourCounts[(h + 1) % 24];
+            if (count > bestCount) { bestCount = count; bestStart = h; }
+        }
+
+        const fmt = h => {
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            return `${h % 12 || 12}${ampm}`;
+        };
+
+        const weekdayCount = dayCounts.slice(1, 6).reduce((a, b) => a + b, 0);
+        const weekendCount = dayCounts[0] + dayCounts[6];
+        const peakDayIdx   = dayCounts.indexOf(Math.max(...dayCounts));
+        const dayStr = weekdayCount > weekendCount * 2 ? 'weekdays' : DAYS[peakDayIdx];
+
+        const tip = `Best time: **${fmt(bestStart)}–${fmt(bestStart + 2)}** on ${dayStr} · based on ${theirEmails.length} emails`;
+
+        logger.info({ userId: req.userId, recipientEmail, dataPoints: theirEmails.length, peakHour: bestStart }, 'reply_timing');
+        res.json({ tip, peakHour: bestStart, peakDay: DAYS[peakDayIdx], dataPoints: theirEmails.length });
+    } catch (err) {
+        logger.error({ err: err.message }, 'reply_timing_error');
+        res.json({ tip: null, dataPoints: 0 });
+    }
+});
+
 // Web Scraper endpoint
 app.post('/scrape-emails', requireAuth, async (req, res) => {
     try {

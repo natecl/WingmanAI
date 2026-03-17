@@ -41,6 +41,7 @@
 }
 
 .wm-sidebar-reminder-item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -178,4 +179,38 @@
     stroke: #4caf50;
     flex-shrink: 0;
     opacity: 0.8;
+}
+
+/* ── Smart Reply Timing tooltip (appears on hover) ── */
+.wm-ri-timing-tooltip {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 4px);
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    padding: 7px 10px;
+    background: #0d0e16;
+    border: 1px solid rgba(142, 125, 255, 0.25);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--wm-text-dim);
+    line-height: 1.4;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: wm-cardSlideIn 0.18s ease both;
+    pointer-events: none;
+}
+
+.wm-ri-timing-tooltip svg {
+    flex-shrink: 0;
+    stroke: var(--wm-primary);
+    opacity: 0.8;
+    margin-top: 1px;
+}
+
+.wm-ri-timing-tooltip strong {
+    color: var(--wm-primary);
+    font-weight: 600;
 }

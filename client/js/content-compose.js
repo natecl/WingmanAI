@@ -363,8 +363,9 @@ function trySendButton(composeBox) {
         const currentThreadPath = getCurrentThreadPath();
         const pendingThread = { id: currentThreadId, path: currentThreadPath };
         if (!currentThreadPath) watchForSentThread(pendingThread);
-        // AI classifies the email and handles dismissing/prompting
-        classifyAndHandleSend(subject, bodySnippet, currentThreadId, pendingThread);
+        // Extract recipient for smart timing
+        const toEmail = composeBox.querySelector('[email]')?.getAttribute('email') || null;
+        classifyAndHandleSend(subject, bodySnippet, currentThreadId, pendingThread, toEmail);
     });
 
     console.log("[Wingman] Send button listener attached");

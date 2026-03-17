@@ -104,6 +104,37 @@ function renderSidebarReminders(reminders) {
             chrome.runtime.sendMessage({ type: "OPEN_TAB", url });
         });
 
+        // Hover: fetch and show reply timing tooltip if we have a recipient
+        if (r.toEmail) {
+            let timingTooltip = null;
+            let timingData = null;
+
+            item.addEventListener("mouseenter", async () => {
+                if (!timingData) {
+                    timingData = await _fetchReplyTiming(r.toEmail);
+                }
+                if (!timingData?.tip || !document.contains(item)) return;
+
+                // Remove any existing tooltip
+                item.querySelector('.wm-ri-timing-tooltip')?.remove();
+
+                timingTooltip = document.createElement('div');
+                timingTooltip.className = 'wm-ri-timing-tooltip';
+                timingTooltip.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    ${_renderTimingTip(timingData)}
+                `;
+                item.appendChild(timingTooltip);
+            });
+
+            item.addEventListener("mouseleave", () => {
+                item.querySelector('.wm-ri-timing-tooltip')?.remove();
+                timingTooltip = null;
+            });
+        }
+
         list.appendChild(item);
     });
 }
@@ -113,7 +144,7 @@ function renderSidebarReminders(reminders) {
    REMINDER PROMPT UI (toast after sending)
 ========================================================= */
 
-async function showReminderPrompt(subject, pendingThread = {}, bodySnippet = "") {
+async function showReminderPrompt(subject, pendingThread = {}, bodySnippet = "", toEmail = null) {
     if (!(await isAuthenticated())) return;
 
     document.querySelector(".wm-reminder-toast")?.remove();
@@ -134,6 +165,7 @@ async function showReminderPrompt(subject, pendingThread = {}, bodySnippet = "")
         <div class="wm-reminder-body">
             No reply to <strong>${escapeHTML(subject)}</strong>? Remind me in:
         </div>
+        <div class="wm-reminder-timing-chip" style="display:none"></div>
         <div class="wm-reminder-options">
             <button class="wm-reminder-btn" data-ms="${1 * 24 * 60 * 60 * 1000}" data-label="1 day">1 Day</button>
             <button class="wm-reminder-btn" data-ms="${3 * 24 * 60 * 60 * 1000}" data-label="3 days">3 Days</button>
@@ -150,25 +182,41 @@ async function showReminderPrompt(subject, pendingThread = {}, bodySnippet = "")
     toast.dataset.autoDismiss = autoDismiss;
 
     toast.querySelector(".wm-reminder-close").addEventListener("click", () => dismissToast(toast));
-    attachQuickOptionListeners(toast, subject, pendingThread, bodySnippet);
+    attachQuickOptionListeners(toast, subject, pendingThread, bodySnippet, toEmail);
+
+    // Async: fetch reply timing and inject chip if we have a recipient
+    if (toEmail) {
+        _fetchReplyTiming(toEmail).then(tip => {
+            if (!tip || !document.contains(toast)) return;
+            const chip = toast.querySelector(".wm-reminder-timing-chip");
+            if (!chip) return;
+            chip.innerHTML = `
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                ${_renderTimingTip(tip)}
+            `;
+            chip.style.display = "flex";
+        });
+    }
 }
 
-function attachQuickOptionListeners(toast, subject, pendingThread = {}, bodySnippet = "") {
+function attachQuickOptionListeners(toast, subject, pendingThread = {}, bodySnippet = "", toEmail = null) {
     toast.querySelector("[data-dismiss]").addEventListener("click", () => dismissToast(toast));
 
     toast.querySelectorAll("[data-ms]").forEach(btn => {
         btn.addEventListener("click", () => {
-            generateSummaryAndSchedule(subject, bodySnippet, parseInt(btn.dataset.ms), pendingThread.id, pendingThread.path);
+            generateSummaryAndSchedule(subject, bodySnippet, parseInt(btn.dataset.ms), pendingThread.id, pendingThread.path, toEmail);
             showReminderConfirm(toast, btn.dataset.label);
         });
     });
 
     toast.querySelector(".wm-reminder-custom-trigger").addEventListener("click", () => {
-        showCustomInput(toast, subject, pendingThread, bodySnippet);
+        showCustomInput(toast, subject, pendingThread, bodySnippet, toEmail);
     });
 }
 
-function showCustomInput(toast, subject, pendingThread = {}, bodySnippet = "") {
+function showCustomInput(toast, subject, pendingThread = {}, bodySnippet = "", toEmail = null) {
     const options = toast.querySelector(".wm-reminder-options");
     options.innerHTML = `
         <div class="wm-reminder-custom">
@@ -204,7 +252,7 @@ function showCustomInput(toast, subject, pendingThread = {}, bodySnippet = "") {
         const unitNames = { min: "minute", hr: "hour", day: "day" };
         const ms = val * multipliers[unit];
         const label = `${val} ${unitNames[unit]}${val !== 1 ? "s" : ""}`;
-        generateSummaryAndSchedule(subject, bodySnippet, ms, pendingThread.id, pendingThread.path);
+        generateSummaryAndSchedule(subject, bodySnippet, ms, pendingThread.id, pendingThread.path, toEmail);
         showReminderConfirm(toast, label);
     });
 
@@ -221,7 +269,7 @@ function showCustomInput(toast, subject, pendingThread = {}, bodySnippet = "") {
             <button class="wm-reminder-btn wm-reminder-custom-trigger">Custom</button>
             <button class="wm-reminder-btn wm-reminder-skip" data-dismiss>Skip</button>
         `;
-        attachQuickOptionListeners(toast, subject, pendingThread, bodySnippet);
+        attachQuickOptionListeners(toast, subject, pendingThread, bodySnippet, toEmail);
     });
 
     numInput.focus();
@@ -252,13 +300,13 @@ function dismissToast(toast) {
    REMINDER SCHEDULING & THREAD UTILITIES
 ========================================================= */
 
-function scheduleReminder(subject, ms, capturedThreadId = null, capturedThreadPath = null, summary = null) {
+function scheduleReminder(subject, ms, capturedThreadId = null, capturedThreadPath = null, summary = null, toEmail = null) {
     const id = "wm_reminder_" + Date.now();
     const dueTime = Date.now() + ms;
     const threadId = capturedThreadId || getCurrentThreadId();
     const threadPath = capturedThreadPath || getCurrentThreadPath();
     try {
-        chrome.runtime.sendMessage({ type: "SET_REMINDER", id, subject, summary, dueTime, threadId, threadPath });
+        chrome.runtime.sendMessage({ type: "SET_REMINDER", id, subject, summary, dueTime, threadId, threadPath, toEmail });
     } catch (e) {
         console.warn("[Wingman] Extension context invalidated — please refresh the page.", e);
     }
@@ -373,6 +421,34 @@ function watchForSentThread(pendingThread) {
 ========================================================= */
 
 /**
+ * Fetch reply timing data for a recipient email (GET /ai/reply-timing).
+ * Returns the tip string or null on failure/no data.
+ */
+function _fetchReplyTiming(recipientEmail) {
+    return new Promise((resolve) => {
+        chrome.storage.local.get('wm_supabase_session', ({ wm_supabase_session }) => {
+            const token = wm_supabase_session?.access_token;
+            if (!token) { resolve(null); return; }
+            const url = `https://wingman-lyart-seven.vercel.app/ai/reply-timing?recipientEmail=${encodeURIComponent(recipientEmail)}`;
+            chrome.runtime.sendMessage({
+                type: 'API_FETCH',
+                url,
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }, (response) => {
+                resolve(response?.ok && response.data?.tip ? response.data : null);
+            });
+        });
+    });
+}
+
+/** Convert a timing tip string with **bold** markdown into safe HTML. */
+function _renderTimingTip(data) {
+    if (!data?.tip) return '';
+    return escapeHTML(data.tip).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+/**
  * Call a server AI endpoint with the user's auth token.
  * Returns the parsed JSON response data, or null on failure.
  */
@@ -410,7 +486,7 @@ function wmServerAI(endpoint, body) {
  *  2. Subject starts with "Re:" → it's a reply, try subject-match dismiss, no prompt
  *  3. Everything else → show "Set a reminder?" prompt immediately
  */
-function classifyAndHandleSend(subject, bodySnippet, currentThreadId, pendingThread) {
+function classifyAndHandleSend(subject, bodySnippet, currentThreadId, pendingThread, toEmail = null) {
     const subjectIsReply = /^re:/i.test(subject);
 
     // Dismiss the inbox summary item (by thread ID or subject fallback)
@@ -429,7 +505,7 @@ function classifyAndHandleSend(subject, bodySnippet, currentThreadId, pendingThr
             } else {
                 // New email composed while a thread was open in the background.
                 // The thread in the URL is unrelated — treat this as a new email.
-                showReminderPrompt(subject || "your email", pendingThread, bodySnippet);
+                showReminderPrompt(subject || "your email", pendingThread, bodySnippet, toEmail);
             }
         });
     } else if (subjectIsReply) {
@@ -438,7 +514,7 @@ function classifyAndHandleSend(subject, bodySnippet, currentThreadId, pendingThr
         // No prompt for replies
     } else {
         // New outgoing email — show prompt immediately
-        showReminderPrompt(subject || "your email", pendingThread, bodySnippet);
+        showReminderPrompt(subject || "your email", pendingThread, bodySnippet, toEmail);
     }
 }
 
@@ -469,7 +545,7 @@ function autoDismissReminderBySubjectMatch(subject, callback) {
  * Generate an AI summary for an email, then schedule the reminder.
  * Falls back to the raw subject if the AI call fails or times out.
  */
-async function generateSummaryAndSchedule(subject, bodySnippet, ms, threadId, threadPath) {
+async function generateSummaryAndSchedule(subject, bodySnippet, ms, threadId, threadPath, toEmail = null) {
     let summary = null;
     try {
         const r = await Promise.race([
@@ -478,7 +554,7 @@ async function generateSummaryAndSchedule(subject, bodySnippet, ms, threadId, th
         ]);
         summary = r?.summary || null;
     } catch (_) {}
-    scheduleReminder(subject, ms, threadId, threadPath, summary);
+    scheduleReminder(subject, ms, threadId, threadPath, summary, toEmail);
 }
 
 /**

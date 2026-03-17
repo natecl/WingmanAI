@@ -18,7 +18,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
                 summary: msg.summary || null,
                 dueTime: msg.dueTime,
                 threadId: msg.threadId || null,
-                threadPath: msg.threadPath || null
+                threadPath: msg.threadPath || null,
+                toEmail: msg.toEmail || null
             });
             chrome.storage.local.set({ wm_reminders });
         });
