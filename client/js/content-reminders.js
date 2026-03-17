@@ -184,21 +184,57 @@ async function showReminderPrompt(subject, pendingThread = {}, bodySnippet = "",
     toast.querySelector(".wm-reminder-close").addEventListener("click", () => dismissToast(toast));
     attachQuickOptionListeners(toast, subject, pendingThread, bodySnippet, toEmail);
 
-    // Async: fetch reply timing and inject chip if we have a recipient
+    // Async: fetch reply timing and inject chip with "Suggested" button
     if (toEmail) {
-        _fetchReplyTiming(toEmail).then(tip => {
-            if (!tip || !document.contains(toast)) return;
+        _fetchReplyTiming(toEmail).then(data => {
+            if (!data?.tip || !document.contains(toast)) return;
             const chip = toast.querySelector(".wm-reminder-timing-chip");
             if (!chip) return;
+
+            const suggestedMs = _msUntilHour(data.peakHour);
+            const suggestedLabel = _formatSuggestedLabel(data.peakHour);
+
             chip.innerHTML = `
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0">
                     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                 </svg>
-                ${_renderTimingTip(tip)}
+                <span class="wm-timing-chip-text">${_renderTimingTip(data)}</span>
+                <button class="wm-timing-suggest-btn">Remind at ${escapeHTML(suggestedLabel)}</button>
             `;
             chip.style.display = "flex";
+
+            chip.querySelector(".wm-timing-suggest-btn").addEventListener("click", () => {
+                generateSummaryAndSchedule(subject, bodySnippet, suggestedMs, pendingThread.id, pendingThread.path, toEmail);
+                showReminderConfirm(toast, suggestedLabel);
+            });
         });
     }
+}
+
+/**
+ * Calculate ms from now until the next occurrence of a given hour (0-23).
+ * If the hour has already passed today, schedules for tomorrow.
+ */
+function _msUntilHour(hour) {
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(hour, 0, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+    return target.getTime() - now.getTime();
+}
+
+/**
+ * Human-readable label for the suggested reminder time.
+ * e.g. "9 AM today" or "9 AM tomorrow"
+ */
+function _formatSuggestedLabel(hour) {
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(hour, 0, 0, 0);
+    const isToday = target > now;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const h = hour % 12 || 12;
+    return `${h} ${ampm} ${isToday ? 'today' : 'tomorrow'}`;
 }
 
 function attachQuickOptionListeners(toast, subject, pendingThread = {}, bodySnippet = "", toEmail = null) {
