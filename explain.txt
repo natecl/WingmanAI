@@ -1,0 +1,489 @@
+================================================================================
+  BetterEmailV2 — Full System Explanation
+  Updated: 2026-03-16
+================================================================================
+
+OVERVIEW
+--------
+BetterEmailV2 (branded "Wingman") is a Chrome Extension that turns Gmail into an
+intelligent productivity layer. It sits as a persistent sidebar inside Gmail and
+provides AI-powered features: priority inbox scoring, semantic search, lead
+discovery, email quality analysis, follow-up reminders, and media management.
+
+The system is fully deployed. The backend runs on Vercel. The database is
+Supabase. The extension is loaded as an unpacked Chrome extension.
+
+--------------------------------------------------------------------------------
+ARCHITECTURE AT A GLANCE
+--------------------------------------------------------------------------------
+
+  Chrome Extension (client/)
+        │
+        │  HTTPS requests
+        ▼
+  Express.js API  (server/index.js)   ←— deployed on Vercel
+        │
+        ├── Supabase (PostgreSQL + pgvector + Storage)
+        ├── OpenAI API (embeddings: text-embedding-3-small, 1536 dims)
+        ├── Google Gemini Flash (priority scoring, AI summaries, reminders)
+        ├── Anthropic Claude Sonnet (email drafting, quality analysis)
+        ├── Firecrawl API (web scraping for lead discovery)
+        └── Gmail API (email ingestion, attachment download)
+
+  Background Worker  (server/workers/indexer.js)
+        └── Runs locally via `npm run worker`
+            Claims indexing jobs from Supabase, embeds with OpenAI,
+            inserts vectors into gmail_message_vectors
+
+--------------------------------------------------------------------------------
+HOW TO RUN LOCALLY
+--------------------------------------------------------------------------------
+
+  1. Install server deps:      cd server && npm install
+  2. Copy env file:            cp .env.example .env  (fill in all keys)
+  3. Start server:             cd server && node index.js
+  4. Start indexer worker:     cd server && npm run worker  (separate terminal)
+  5. Load extension:           Chrome → chrome://extensions → Load unpacked → client/
+  6. Copy client config:       cp client/config.example.js client/config.js  (fill keys)
+
+  The extension talks to the Vercel deployment by default. To use local server,
+  change the API base URL in client/config.js.
+
+--------------------------------------------------------------------------------
+TECH STACK
+--------------------------------------------------------------------------------
+
+  Frontend:     React.js (browser extension, content scripts)
+  Backend:      Express.js + Node.js
+  Database:     Supabase (PostgreSQL, pgvector, Storage buckets)
+  Auth:         Supabase Auth + Google OAuth (chrome.identity)
+  Embeddings:   OpenAI text-embedding-3-small (1536 dimensions)
+  AI Models:    Claude Sonnet (drafting/analysis), Gemini 2.5 Flash (scoring/summaries)
+  Scraping:     Firecrawl API
+  Deployment:   Vercel (backend), Chrome unpacked extension (frontend)
+
+--------------------------------------------------------------------------------
+PROJECT STRUCTURE
+--------------------------------------------------------------------------------
+
+  BetterEmailV2/
+  ├── server/
+  │   ├── index.js                    ← All API endpoints (Express)
+  │   ├── middleware/auth.js          ← Supabase JWT validation
+  │   ├── services/
+  │   │   ├── gmailService.js         ← Gmail ingestion, MIME parsing, attachments
+  │   │   ├── embeddingService.js     ← OpenAI embeddings (1536d), text chunking
+  │   │   ├── searchService.js        ← Vector search + result ranking
+  │   │   └── scraperService.js       ← Firecrawl lead discovery pipeline
+  │   ├── workers/
+  │   │   └── indexer.js              ← Background embedding worker (run locally)
+  │   ├── migrations/
+  │   │   ├── 001_semantic_search.sql
+  │   │   ├── 004_media.sql
+  │   │   └── 005_media_gmail.sql
+  │   └── __tests__/                  ← Unit tests (npm test)
+  │
+  ├── client/
+  │   ├── manifest.json               ← Manifest V3 Chrome extension config
+  │   ├── config.example.js           ← Client config template (copy → config.js)
+  │   ├── auth.js                     ← Google OAuth via chrome.identity
+  │   ├── background.js               ← Service worker (reminders, auth, API proxy)
+  │   ├── js/
+  │   │   ├── content-init.js         ← Bootstrap, auto-sync timer
+  │   │   ├── content-api.js          ← Fetch wrapper with auth headers
+  │   │   ├── content-sidebar.js      ← Main sidebar shell + all tab HTML
+  │   │   ├── content-search.js       ← Semantic search panel + Gmail overlay
+  │   │   ├── content-priority.js     ← Priority contacts + Gmail row highlights
+  │   │   ├── content-media.js        ← Media tab (upload, filter, star, date range)
+  │   │   ├── content-compose.js      ← Gmail compose window reader
+  │   │   ├── content-analyzer.js     ← Email quality analyzer UI
+  │   │   ├── content-leads.js        ← Lead finder tab
+  │   │   ├── content-reminders.js    ← Follow-up reminder toasts + sidebar list
+  │   │   └── content-resume.js       ← Resume upload in Settings tab
+  │   └── css/                        ← 13 CSS files (sidebar, media, search, etc.)
+  │
+  ├── .env.example                    ← Required environment variable names
+  ├── CLAUDE.md                       ← Developer instructions
+  ├── vercel.json                     ← Vercel deployment config
+  └── explain.txt                     ← This file
+
+--------------------------------------------------------------------------------
+BACKEND API ENDPOINTS  (all at https://wingman-lyart-seven.vercel.app)
+--------------------------------------------------------------------------------
+
+  Authentication: All protected routes require a Supabase JWT in the
+  Authorization header (Bearer token). The extension sends this automatically.
+
+  EMAIL ANALYSIS & AI
+  ───────────────────
+  POST /analyze-email
+    Input:  { subject, body, context }
+    Output: { score, feedback, suggestions }
+    AI:     Claude Sonnet via OpenRouter
+    Notes:  Reads active Gmail compose window content; returns quality score
+            plus specific improvement suggestions tailored to user's context.
+
+  POST /ai/classify-followup
+    Input:  { subject, body }
+    Output: { isFollowUp: bool }
+    AI:     Gemini Flash
+    Notes:  Determines if a sent email is a follow-up to a prior thread.
+
+  POST /ai/summarize-email
+    Input:  { subject, body, fromName }
+    Output: { summary }  (4–6 words)
+    AI:     Gemini Flash
+    Notes:  Used for reminder cards in sidebar Main tab.
+
+  GMAIL SYNC & SEARCH
+  ───────────────────
+  POST /gmail/sync
+    Input:  { provider_token, limit? }   (requires auth)
+    Output: { synced, queued, historyId }
+    Notes:  Ingests emails from Gmail API using incremental history sync.
+            Extracts text body, parses From/Subject/Date headers.
+            Upserts to gmail_messages table, queues new messages to
+            indexing_jobs for background embedding.
+            Also extracts PDF/image attachments and uploads them to
+            Supabase Storage (user-media bucket), deduplicating by
+            gmail_attachment_id.
+
+  POST /search
+    Input:  { query, from_email?, after?, before? }  (requires auth)
+    Output: { results: [{ gmail_message_id, thread_id, subject, from_name,
+              from_email, internal_date, score, snippet }] }
+    Notes:  Embeds query with OpenAI (1536d), runs pgvector similarity search
+            via Supabase RPC search_email_vectors(), groups by message,
+            boosts summary chunk matches 1.5x, returns top 10.
+
+  POST /api/process-indexing-jobs
+    Input:  (none, uses internal Supabase service key)
+    Output: { processed, remaining }
+    Notes:  Claims and processes a batch of pending indexing jobs. Each job
+            embeds a gmail_messages row (summary + chunks) and inserts vectors
+            into gmail_message_vectors. Called by local indexer worker or
+            optionally by extension UI polling.
+
+  INBOX PRIORITY
+  ──────────────
+  GET /emails/summary
+    Input:  query params: limit?, offset?  (requires auth)
+    Output: { high: [...], medium: [...], low: [...] }
+    Notes:  Returns scored inbox emails. Each email includes AI reason for
+            priority level. Used to populate the Main tab inbox summary.
+
+  LEAD DISCOVERY & OUTREACH
+  ─────────────────────────
+  POST /scrape-emails
+    Input:  { prompt }  (e.g. "UF computer science professors")
+    Output: { results: [{ name, email, detail, sourceUrl }], source }
+    Notes:  3-tier cache: prompt_cache → email_leads → live Firecrawl pipeline.
+            Normalizes prompt, maps university keywords to domains.
+            Deobfuscates emails ([at] → @, [dot] → .).
+            Filters out role/generic emails (info@, support@, etc.).
+
+  POST /draft-email
+    Input:  { resumeText, jobDescription, context }  (requires auth)
+    Output: { subject, body }
+    AI:     Claude Sonnet
+    Notes:  Single email draft using user's uploaded resume.
+
+  POST /draft-personalized-emails
+    Input:  { leads: [{ name, email, sourceUrl }] }  (requires auth, max 3)
+    Output: { drafts: [{ name, email, subject, body }] }
+    AI:     Claude Sonnet
+    Notes:  Scrapes each lead's profile page + arXiv via Firecrawl.
+            Drafts personalized cold email per lead using user's resume.
+            Opens a Gmail compose window for each draft automatically.
+
+  POST /leads/summarize
+    Input:  { leads: [...] }
+    Output: { summaries: [...] }
+    Notes:  Short summaries of discovered leads for sidebar display.
+
+  MEDIA MANAGEMENT
+  ────────────────
+  GET /user/media?search=...
+    Output: { files: [{ id, original_name, file_type, file_size, created_at,
+              url, from_email }] }
+    Notes:  Lists user's media files. Generates 1-hour signed Supabase
+            Storage URLs. `from_email: true` means it came from Gmail sync.
+            `search` filters by filename.
+
+  POST /user/media/upload
+    Input:  multipart/form-data with file field  (requires auth, max 20MB)
+    Output: { id, original_name, url }
+    Notes:  Validates type (PDF, JPEG, PNG, GIF, WebP, SVG).
+            Uploads to Supabase Storage `user-media` bucket.
+            Inserts metadata row to user_media table.
+
+  DELETE /user/media/:id
+    Output: { success: true }
+    Notes:  Removes file from Storage and deletes user_media row.
+
+  RESUME
+  ──────
+  GET  /user/resume          → Returns saved resume metadata
+  PUT  /user/resume          → Update resume text
+  POST /user/resume/upload   → Upload PDF, extract text with pdf2json (max 5MB)
+
+--------------------------------------------------------------------------------
+CHROME EXTENSION — SIDEBAR TABS
+--------------------------------------------------------------------------------
+
+  The sidebar is a 350px persistent right panel injected into Gmail's DOM.
+  Gmail shifts left to accommodate it. There are 5 tabs:
+
+  ┌──────────────────────────────────────────┐
+  │  Main  │  Leads  │  Search  │  Media  │  Settings  │
+  └──────────────────────────────────────────┘
+
+  MAIN TAB
+  ────────
+  Inbox Summary
+  • Fetches scored inbox from GET /emails/summary
+  • Categorizes into Priority, Regular, Newsletters
+  • Each email shows: sender, subject, AI priority reason
+  • Clicking opens Gmail thread
+  • Dismissing fades and hides for the session
+  • Highlighted emails in Gmail inbox get amber left border (4px inset box-shadow)
+    applied via MutationObserver watching tr.zA / tr.zE rows
+
+  Priority Contacts
+  • User types a name or email address, selects a color, clicks Add
+  • Stored in chrome.storage.local (wm_priorities)
+  • All Gmail inbox rows from matching senders get a colored left border
+    (using the contact's chosen color) applied immediately via DOM injection
+  • Color picker per contact (6 preset colors) — editable after adding
+  • Remove contact → highlights clear immediately
+
+  Follow-up Reminders
+  • Shows pending reminders with subject, recipient, due time
+  • AI-generated 1–2 sentence summary per reminder (Gemini Flash)
+  • Smart auto-dismiss: when a reply is sent (Re: subject or threadId match),
+    the reminder disappears automatically
+  • Clicking opens the Gmail thread
+
+  Compose Analyzer
+  • User types context ("job application to Google")
+  • Analyze button → reads active Gmail compose, sends to /analyze-email
+  • Returns quality score + specific improvement suggestions
+  • Draft button → generates full email from resume + context via /draft-email
+
+  LEADS TAB
+  ─────────
+  • Search bar: user types "UF research professors" → calls /scrape-emails
+  • Results: name, email, detail/role, source URL
+  • "Draft emails to top 3" button → calls /draft-personalized-emails
+    → scrapes each lead's arXiv + profile page
+    → opens Gmail compose windows with personalized drafts
+
+  SEARCH TAB
+  ──────────
+  • Natural language query (e.g. "email from Nathan about the club trip")
+  • Sync button → /gmail/sync to ingest new emails + queue for indexing
+  • Background indexing status shown (e.g. "Indexing in background — 8000 queued")
+  • Results show: from, date, subject, snippet, Open in Gmail link
+  • Also available as Gmail search bar overlay:
+    - Small toggle button appears next to Gmail's search bar
+    - Shift key toggles between Gmail native search and semantic search
+    - Animated blue glow ring when semantic mode is active
+
+  MEDIA TAB
+  ─────────
+  Sources:
+  • Auto: attachments (PDF, JPEG, PNG, GIF, WebP, SVG) from all synced emails
+    are automatically extracted and uploaded to Supabase Storage
+  • Manual: drag-and-drop or click-to-upload (max 20MB per file)
+
+  Features:
+  • Search bar (debounced 350ms) → filters by filename
+  • Sort: Newest | Oldest | Name | Size
+  • Type filters: All | Important ⭐ | PDF | Images | JPEG | PNG
+  • Date range: From [date picker] → To [date picker] with clear button
+    - Supports: "Jan 10 to present", "Feb 10 to Feb 15", "oldest to Feb 24"
+  • Star button (visible on hover): marks file as Important
+    Important files shown in "Important" filter; starred state persists in
+    chrome.storage.local (wm_important_media)
+  • Delete button (visible on hover): removes from Storage + DB
+  • "from email" badge on auto-populated attachments
+  • Clicking a file opens it in a new tab (signed URL, 1-hour expiry)
+
+  SETTINGS TAB
+  ────────────
+  • Upload resume PDF (max 5MB) → text extracted server-side with pdf2json
+  • Resume used by: Compose Analyzer draft, Lead personalized email drafting
+  • Shows upload status + resume summary
+
+  AUTH (all tabs)
+  ───────────────
+  • Sign in with Google button (visible when logged out)
+  • Uses chrome.identity.launchWebAuthFlow → Supabase Google OAuth
+  • Captures: access_token, refresh_token, provider_token (Gmail OAuth)
+  • Stores session in wm_supabase_session (chrome.storage.local)
+  • Auth state changes → sidebar unlocks/locks instantly (no page reload)
+  • Sign out clears session and Gmail tokens from Supabase users table
+
+--------------------------------------------------------------------------------
+BACKGROUND SERVICE WORKER  (client/background.js)
+--------------------------------------------------------------------------------
+
+  Runs as a Manifest V3 service worker. Handles 8 message types:
+
+  FILE_UPLOAD    Proxies multipart file uploads (content scripts can't send
+                 FormData to backend due to CORS/mixed content restrictions)
+
+  API_FETCH      Proxies API requests with auth headers
+
+  SET_REMINDER   Stores reminder metadata in chrome.storage.local,
+                 schedules chrome.alarms for the target time
+
+  CLEAR_ALARM    Cancels a scheduled alarm
+
+  OPEN_TAB       Opens a URL in a new Chrome tab
+
+  SIGN_IN        Launches Google OAuth flow (must run in service worker,
+                 not content script)
+
+  SIGN_OUT       Clears Supabase session, removes tokens from storage
+
+  Auto-sync: chrome.alarms fires every 30 minutes → calls /gmail/sync
+  with stored provider_token to keep email index up to date.
+
+--------------------------------------------------------------------------------
+DATABASE TABLES  (Supabase / PostgreSQL)
+--------------------------------------------------------------------------------
+
+  users
+    id (UUID, references auth.users), gmail_tokens (JSONB),
+    history_id (TEXT), resume_text (TEXT), created_at
+
+  gmail_messages
+    id, user_id, gmail_message_id (UNIQUE per user), thread_id,
+    subject, from_name, from_email, labels (TEXT[]),
+    internal_date (BIGINT), body_text (TEXT), body_hash (TEXT)
+
+  gmail_message_vectors
+    id, user_id, gmail_message_id, chunk_type ('summary'|'chunk'),
+    chunk_index (INT), chunk_text (TEXT), embedding VECTOR(1536)
+    — pgvector cosine similarity search
+
+  indexing_jobs
+    id, user_id, gmail_message_id, status ('pending'|'processing'|'done'|'error'),
+    error_message (TEXT), created_at, updated_at
+    — queue for background embedding worker
+
+  user_media
+    id (UUID), user_id, storage_path (TEXT), original_name (TEXT),
+    file_type (TEXT), file_size (BIGINT), created_at,
+    gmail_message_id (TEXT, nullable), gmail_attachment_id (TEXT, nullable)
+    — UNIQUE index on (user_id, gmail_attachment_id) for deduplication
+
+  scraped_pages
+    url (PK TEXT), scraped_at, content
+
+  email_leads
+    email (PK TEXT), name, detail, sourceUrl, domain, created_at
+
+  prompt_cache
+    cache_key (PK TEXT), prompt_normalized, domain, results (JSONB),
+    created_at — expires after 3 days
+
+--------------------------------------------------------------------------------
+BACKGROUND INDEXING WORKER  (server/workers/indexer.js)
+--------------------------------------------------------------------------------
+
+  Run with: cd server && npm run worker
+
+  Loop:
+  1. Call Supabase RPC claim_indexing_job() — atomically claims one pending job
+  2. Fetch gmail_messages row for that job
+  3. Build summary text: "From: X\nSubject: Y\n\nBody snippet..."
+  4. Chunk body into ~500 token segments with 50 token overlap
+  5. Embed summary + all chunks via OpenAI text-embedding-3-small (1536d) in one batch
+  6. Delete old vectors for this message (re-index on change)
+  7. Insert new vectors to gmail_message_vectors
+  8. Mark job as 'done' (or 'error' with error_message)
+  9. Wait 5 seconds, repeat indefinitely
+
+  When no jobs remain, polls every 5 seconds doing nothing.
+
+  Note: The Vercel endpoint /api/process-indexing-jobs does the same thing
+  in small batches (for edge function timeout compliance). If both are running,
+  the local worker claims jobs first (faster). The extension UI detects when
+  the local worker is running and shows "Indexing in background — X queued"
+  instead of polling Vercel.
+
+--------------------------------------------------------------------------------
+GMAIL DOM MANIPULATION
+--------------------------------------------------------------------------------
+
+  The extension injects visual indicators directly into Gmail's DOM:
+
+  Inbox Priority Highlights (content-sidebar.js + content-priority.js)
+  • Target: tr.zA (all email rows), tr.zE (unread rows)
+  • Method: row.style.setProperty('box-shadow', 'inset 4px 0 0 COLOR', 'important')
+            + small colored marker div in first <td>
+  • Amber color (#f59e0b) for AI-scored priority emails
+  • User-chosen color for Priority Contact emails
+  • MutationObserver on document.body (subtree, childList) re-applies on every
+    Gmail re-render
+
+  Semantic Search Overlay (content-search.js)
+  • Toggle button injected next to Gmail's search bar
+  • Shift key listener toggles semantic mode
+  • Animated glow ring (CSS box-shadow pulse animation) when active
+  • Results dropdown overlaid below Gmail search input
+
+  Sidebar Injection (content-sidebar.js)
+  • div#wm-sidebar appended to document.body
+  • Gmail main element gets margin-right: 350px
+  • Sidebar toggle button: fixed position right edge
+
+--------------------------------------------------------------------------------
+SECURITY
+--------------------------------------------------------------------------------
+
+  • No API keys in source files — all in server/.env
+  • .env is gitignored
+  • Gmail OAuth tokens stored only in Supabase users table (never in localStorage
+    or API responses)
+  • Supabase access tokens fetched on-demand via supabase.auth.getSession()
+  • All backend routes use requireAuth middleware (validates Supabase JWT)
+  • RLS (Row Level Security) on Supabase tables — users can only access their own data
+  • Rate limiting on all endpoints via express-rate-limit
+  • File upload validation: type allowlist + 20MB size limit enforced server-side
+
+--------------------------------------------------------------------------------
+AI MODEL ASSIGNMENTS
+--------------------------------------------------------------------------------
+
+  Claude Sonnet (Anthropic)         Email quality analysis, email drafting,
+                                    personalized lead outreach generation
+
+  Gemini 2.5 Flash (Google)         Inbox priority scoring, follow-up classification,
+                                    4–6 word email summaries, reminder logic
+
+  OpenAI text-embedding-3-small     Semantic search embeddings (1536 dimensions)
+  (OpenAI)                          Stored in Supabase pgvector
+
+  Firecrawl                         Web scraping for lead discovery,
+                                    arXiv + profile page scraping for personalization
+
+--------------------------------------------------------------------------------
+COMMANDS REFERENCE
+--------------------------------------------------------------------------------
+
+  cd server && node index.js          Start backend server (port 3000)
+  cd server && npm run worker         Start background indexing worker
+  cd server && npm test               Run unit tests
+  cd server && npm install            Install dependencies
+
+  Chrome Extension:
+  chrome://extensions → Load unpacked → select client/ folder
+  Reload extension after code changes
+
+  Deploy:
+  git push origin main                Vercel auto-deploys on push to main
+
+================================================================================
