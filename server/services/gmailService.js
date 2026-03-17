@@ -266,12 +266,28 @@ async function upsertMessage(supabase, userId, msgData) {
 
     if (error) throw new Error(`Upsert failed: ${error.message}`);
 
-    // Queue for indexing
-    await supabase.from('indexing_jobs').insert({
+    // Queue for indexing — idempotent:
+    // • New message   → INSERT succeeds normally
+    // • Changed msg, job done/error → INSERT conflicts → UPDATE to pending
+    // • Changed msg, job pending/processing → INSERT conflicts → no-op (existing job will use latest body)
+    const { error: jobInsertError } = await supabase.from('indexing_jobs').insert({
         message_id: upserted.id,
+        gmail_message_id: gmailMessageId,
         user_id: userId,
         status: 'pending'
     });
+
+    if (jobInsertError) {
+        if (jobInsertError.code === '23505') {
+            // Unique violation — job exists. Re-queue only if it's in a terminal state.
+            await supabase.from('indexing_jobs')
+                .update({ status: 'pending', updated_at: new Date().toISOString() })
+                .eq('message_id', upserted.id)
+                .in('status', ['done', 'error']);
+        } else {
+            throw new Error(`Failed to queue indexing job: ${jobInsertError.message}`);
+        }
+    }
 
     return existing ? 'changed' : 'new';
 }

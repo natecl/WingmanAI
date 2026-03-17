@@ -67,6 +67,10 @@ function extractPdfText(buffer) {
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Per-user sync guard — prevents duplicate concurrent syncs within the same process.
+// On Vercel each invocation is isolated, so this mainly helps local dev.
+const _syncInProgress = new Set();
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
@@ -321,6 +325,12 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'provider_token is required' });
         }
 
+        // Prevent duplicate concurrent syncs for the same user
+        if (_syncInProgress.has(req.userId)) {
+            return res.json({ processed: 0, queued: 0, status: 'Sync already in progress' });
+        }
+        _syncInProgress.add(req.userId);
+
         const supabase = createClient(
             process.env.SUPABASE_URL,
             process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -349,72 +359,79 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
             let processed = 0;
             let queued = 0;
             let newHistoryId = null;
+            try {
+                console.log(`[Sync Debug] Starting background processing for ${messageIds.length} messages...`);
 
-            console.log(`[Sync Debug] Starting background processing for ${messageIds.length} messages...`);
+                for (const msgId of messageIds) {
+                    try {
+                        const gmailMsg = await fetchMessage(provider_token, msgId);
+                        const headers = gmailMsg.payload?.headers || [];
 
-            for (const msgId of messageIds) {
-                try {
-                    const gmailMsg = await fetchMessage(provider_token, msgId);
-                    const headers = gmailMsg.payload?.headers || [];
+                        const subject = getHeader(headers, 'Subject') || '(no subject)';
+                        const fromHeader = getHeader(headers, 'From') || '';
+                        const toHeader = getHeader(headers, 'To') || '';
+                        const { name: fromName, email: fromEmail } = parseFrom(fromHeader);
 
-                    const subject = getHeader(headers, 'Subject') || '(no subject)';
-                    const fromHeader = getHeader(headers, 'From') || '';
-                    const toHeader = getHeader(headers, 'To') || '';
-                    const { name: fromName, email: fromEmail } = parseFrom(fromHeader);
+                        const toEmails = toHeader
+                            .split(',')
+                            .map(t => t.trim())
+                            .filter(Boolean);
 
-                    const toEmails = toHeader
-                        .split(',')
-                        .map(t => t.trim())
-                        .filter(Boolean);
+                        const rawBody = extractBodyText(gmailMsg.payload);
+                        const bodyText = cleanBodyText(rawBody);
+                        const bodyHash = computeBodyHash(bodyText);
 
-                    const rawBody = extractBodyText(gmailMsg.payload);
-                    const bodyText = cleanBodyText(rawBody);
-                    // Generate hash to avoid duplicate processing
-                    const bodyHash = computeBodyHash(bodyText);
-
-                    // Track the latest historyId
-                    if (gmailMsg.historyId) {
-                        if (!newHistoryId || BigInt(gmailMsg.historyId) > BigInt(newHistoryId)) {
-                            newHistoryId = gmailMsg.historyId;
+                        // Track the latest historyId
+                        if (gmailMsg.historyId) {
+                            if (!newHistoryId || BigInt(gmailMsg.historyId) > BigInt(newHistoryId)) {
+                                newHistoryId = gmailMsg.historyId;
+                            }
                         }
-                    }
 
-                    const result = await upsertMessage(supabase, req.userId, {
-                        gmailMessageId: msgId,
-                        threadId: gmailMsg.threadId,
-                        subject,
-                        fromName,
-                        fromEmail,
-                        toEmails,
-                        labels: gmailMsg.labelIds || [],
-                        internalDate: new Date(parseInt(gmailMsg.internalDate)).toISOString(),
-                        bodyText,
-                        bodyHash
-                    });
+                        const result = await upsertMessage(supabase, req.userId, {
+                            gmailMessageId: msgId,
+                            threadId: gmailMsg.threadId,
+                            subject,
+                            fromName,
+                            fromEmail,
+                            toEmails,
+                            labels: gmailMsg.labelIds || [],
+                            internalDate: new Date(parseInt(gmailMsg.internalDate)).toISOString(),
+                            bodyText,
+                            bodyHash
+                        });
 
-                    processed++;
-                    if (result === 'new' || result === 'changed') queued++;
-                } catch (msgErr) {
-                    if (msgErr.code === 'GMAIL_AUTH_ERROR') {
-                        console.warn(`[Sync] Gmail token expired for user ${req.userId} — stopping batch. User needs to re-authenticate.`);
-                        break; // All subsequent messages will also fail — abort now
+                        processed++;
+                        if (result === 'new' || result === 'changed') queued++;
+                    } catch (msgErr) {
+                        if (msgErr.code === 'GMAIL_AUTH_ERROR') {
+                            console.warn(`[Sync] Gmail token expired for user ${req.userId} — stopping batch.`);
+                            break;
+                        }
+                        console.error(`Failed to process message ${msgId}:`, msgErr.message);
                     }
-                    console.error(`Failed to process message ${msgId}:`, msgErr.message);
                 }
-            }
 
-            // Update history_id for next incremental sync
-            if (newHistoryId) {
-                try {
+                // Update history_id + last_synced_at for next incremental sync
+                if (newHistoryId) {
                     await supabase.from('users').update({
                         history_id: newHistoryId,
+                        last_synced_at: new Date().toISOString(),
                         updated_at: new Date().toISOString()
                     }).eq('id', req.userId);
-                } catch (err) {
-                    console.error(`Failed to update history_id for user ${req.userId}`, err);
+                } else {
+                    await supabase.from('users').update({
+                        last_synced_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    }).eq('id', req.userId);
                 }
+
+                console.log(`[Sync Debug] Background processing complete. Processed: ${processed}, Queued: ${queued}`);
+            } catch (bgErr) {
+                console.error(`[Sync] Background processing error for user ${req.userId}:`, bgErr.message);
+            } finally {
+                _syncInProgress.delete(req.userId);
             }
-            console.log(`[Sync Debug] Background processing complete. Processed: ${processed}, Queued for vector embedding: ${queued}`);
         }, 0);
     } catch (error) {
         console.error('Gmail sync error:', error);
@@ -461,7 +478,7 @@ app.post('/search', requireAuth, async (req, res) => {
         console.log(`[Search Debug] rawResults length from Supabase: ${rawResults ? rawResults.length : 'null'}`);
 
         // Group, rank, and return
-        const results = groupAndRankResults(rawResults);
+        const results = groupAndRankResults(rawResults, query);
         console.log(`[Search Debug] Final grouped results count: ${results.length}`);
 
         res.json({ results });

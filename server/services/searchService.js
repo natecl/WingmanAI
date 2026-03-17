@@ -21,12 +21,13 @@ async function embedQuery(openai, query) {
 
 /**
  * Run vector similarity search via Supabase RPC.
+ * Fetches 50 candidates to give the re-ranker more material.
  */
 async function vectorSearch(supabase, userId, queryVector, filters) {
     const params = {
         p_user_id: userId,
         p_query_vector: JSON.stringify(queryVector),
-        p_match_count: 20,
+        p_match_count: 50,
         p_from_email: filters?.from || null,
         p_after: filters?.after || null,
         p_before: filters?.before || null
@@ -39,11 +40,48 @@ async function vectorSearch(supabase, userId, queryVector, filters) {
 }
 
 /**
- * Group search results by gmail_message_id, boost summary matches,
- * pick the best chunk per message, return top 10 sorted by score.
+ * Find the best 250-char window in text that contains the most query keywords.
+ * Prepends/appends "..." when the window doesn't start/end at the text boundary.
  */
-function groupAndRankResults(rows) {
+function extractSnippet(text, queryWords, maxLen = 250) {
+    if (!text) return '';
+    if (queryWords.length === 0) return text.substring(0, maxLen);
+
+    const lower = text.toLowerCase();
+    let bestPos = 0;
+    let bestCount = 0;
+
+    for (let i = 0; i <= Math.max(0, text.length - maxLen); i += 40) {
+        const window = lower.substring(i, i + maxLen);
+        const count = queryWords.filter(w => window.includes(w)).length;
+        if (count > bestCount) {
+            bestCount = count;
+            bestPos = i;
+        }
+    }
+
+    let snippet = text.substring(bestPos, bestPos + maxLen).trim();
+    if (bestPos > 0) snippet = '…' + snippet;
+    if (bestPos + maxLen < text.length) snippet += '…';
+    return snippet;
+}
+
+/**
+ * Group search results by gmail_message_id, boost summary + keyword matches,
+ * pick the best chunk per message, return top 15 sorted by score.
+ *
+ * @param {Array}  rows  - Raw rows from vectorSearch
+ * @param {string} query - Original user query (for keyword boost)
+ */
+function groupAndRankResults(rows, query) {
     if (!rows || rows.length === 0) return [];
+
+    // Meaningful keywords (length > 2, ignore stop words)
+    const STOP = new Set(['the','and','for','from','about','with','that','this','was','are','have','has','had','not','but','you','your','our','can','will','just','been','were','they','what','when','where','how','its','their','there','here','also','very','more','than','into','out','over','who','him','her','his','she','one','all','any','some','each','then','them','these','those','such','like','time','only','other','after','before','around','because']);
+    const queryWords = (query || '')
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !STOP.has(w));
 
     const grouped = {};
 
@@ -64,10 +102,17 @@ function groupAndRankResults(rows) {
             };
         }
 
-        // Boost summary matches by 1.5x
-        const score = row.chunk_type === 'summary'
-            ? row.similarity * 1.5
-            : row.similarity;
+        let score = row.similarity;
+
+        // Boost summary chunk (already captures subject + from + body intro)
+        if (row.chunk_type === 'summary') score *= 1.5;
+
+        // Keyword boost: up to +20% if query terms appear in the chunk
+        if (queryWords.length > 0) {
+            const chunkLower = (row.chunk_text || '').toLowerCase();
+            const hits = queryWords.filter(w => chunkLower.includes(w)).length;
+            score *= 1 + Math.min(hits / queryWords.length, 1) * 0.2;
+        }
 
         if (score > grouped[msgId].best_score) {
             grouped[msgId].best_score = score;
@@ -75,10 +120,9 @@ function groupAndRankResults(rows) {
         }
     }
 
-    // Convert to array, sort by score descending, take top 10
     return Object.values(grouped)
         .sort((a, b) => b.best_score - a.best_score)
-        .slice(0, 10)
+        .slice(0, 15)
         .map(r => ({
             gmail_message_id: r.gmail_message_id,
             thread_id: r.thread_id,
@@ -87,13 +131,14 @@ function groupAndRankResults(rows) {
             from_email: r.from_email,
             labels: r.labels,
             internal_date: r.internal_date,
-            score: Math.round(r.best_score * 1000) / 1000,
-            snippet: r.best_chunk.substring(0, 200)
+            score: Math.min(Math.round(r.best_score * 1000) / 1000, 0.999),
+            snippet: extractSnippet(r.best_chunk, queryWords)
         }));
 }
 
 module.exports = {
     embedQuery,
     vectorSearch,
-    groupAndRankResults
+    groupAndRankResults,
+    extractSnippet
 };
