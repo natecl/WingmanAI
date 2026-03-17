@@ -48,6 +48,37 @@ function resetBtn(btn, label, pathD) {
     `;
 }
 
+/** Convert AI content string → safe HTML with bullets and bold support. */
+function _formatCardContent(text) {
+    if (!text) return '';
+    const lines = text.split('\n').filter(l => l.trim());
+    const isBulletLine = l => /^[-•]\s/.test(l.trim());
+
+    let html = '';
+    let inList = false;
+    for (const line of lines) {
+        const escaped = escapeHTML(line.trim())
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        if (isBulletLine(line)) {
+            if (!inList) { html += '<ul class="wm-card-list">'; inList = true; }
+            html += `<li>${escaped.replace(/^[-•]\s*/, '')}</li>`;
+        } else {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += `<p>${escaped}</p>`;
+        }
+    }
+    if (inList) html += '</ul>';
+    return html;
+}
+
+/** Extract "Score: X/10" from the Overall Verdict content. Returns number or null. */
+function _parseScore(sections) {
+    const verdict = sections.find(s => s.title.toLowerCase().includes('verdict'));
+    if (!verdict) return null;
+    const m = verdict.content.match(/score[:\s]+(\d+)\s*\/\s*10/i);
+    return m ? parseInt(m[1], 10) : null;
+}
+
 function renderSidebarResults(container, raw) {
     container.innerHTML = "";
 
@@ -58,33 +89,49 @@ function renderSidebarResults(container, raw) {
 
     try {
         const sections = JSON.parse(jsonStr);
+        const score = _parseScore(sections);
 
         const grid = document.createElement("div");
         grid.className = "wm-sidebar-results-grid";
 
+        // Score badge header
+        if (score !== null) {
+            const scoreColor = score >= 8 ? '#34a853' : score >= 6 ? '#f9ab00' : '#ea4335';
+            const scoreBadge = document.createElement('div');
+            scoreBadge.className = 'wm-score-badge';
+            scoreBadge.innerHTML = `
+                <div class="wm-score-ring" style="--score-color:${scoreColor}">
+                    <span class="wm-score-number">${score}</span>
+                    <span class="wm-score-denom">/10</span>
+                </div>
+                <span class="wm-score-label">Email Score</span>
+            `;
+            grid.appendChild(scoreBadge);
+        }
+
+        const ACCENTS = { grammar: 'accent-blue', tone: 'accent-purple', clarity: 'accent-cyan', suggestion: 'accent-yellow', verdict: 'accent-green' };
+
         sections.forEach((s, i) => {
             const card = document.createElement("div");
             card.className = "wm-sidebar-result-card";
-            card.style.animationDelay = `${i * 0.08}s`;
+            card.style.animationDelay = `${i * 0.07}s`;
 
-            let accent = "";
-            const title = s.title.toLowerCase();
-            if (title.includes("grammar")) accent = "accent-blue";
-            else if (title.includes("tone")) accent = "accent-purple";
-            else if (title.includes("clarity")) accent = "accent-cyan";
-            else if (title.includes("suggestion")) accent = "accent-yellow";
-            else if (title.includes("verdict")) accent = "accent-green";
-
+            const titleLower = s.title.toLowerCase();
+            const accent = Object.entries(ACCENTS).find(([k]) => titleLower.includes(k))?.[1] || '';
             if (accent) card.classList.add(accent);
+
+            // Strip "Score: X/10" from verdict display (shown in badge instead)
+            const displayContent = s.title.toLowerCase().includes('verdict')
+                ? s.content.replace(/^Score:\s*\d+\/10\s*[—\-–]?\s*/i, '')
+                : s.content;
 
             card.innerHTML = `
                 <div class="wm-sidebar-card-header">
                     <span class="wm-sidebar-card-icon">${s.icon}</span>
-                    <span class="wm-sidebar-card-title">${s.title}</span>
+                    <span class="wm-sidebar-card-title">${escapeHTML(s.title)}</span>
                 </div>
-                <div class="wm-sidebar-card-content">${s.content}</div>
+                <div class="wm-sidebar-card-content">${_formatCardContent(displayContent)}</div>
             `;
-
             grid.appendChild(card);
         });
 

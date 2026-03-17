@@ -7,18 +7,8 @@
    SYSTEM PROMPT (email analyzer)
 ========================================================= */
 
-const SYSTEM_PROMPT = `You are an expert email analyzer. The user will provide an email they have written and the context/purpose of the email.
-Analyze the email and respond with a JSON array. Each element must have:
-- "title"
-- "icon"
-- "content"
-Return exactly these 5 sections in order:
-1. Grammar & Spelling
-2. Tone & Formality
-3. Clarity & Structure
-4. Suggestions
-5. Overall Verdict
-Return ONLY the JSON array.`;
+// System prompt is now defined server-side for richer context injection.
+// Kept here for reference only — not sent by the client anymore.
 
 
 /* =========================================================
@@ -49,9 +39,14 @@ function wireAnalyzer(sidebar) {
             return;
         }
 
+        // Try to extract recipient email from the compose window
+        const recipientEmail = _getComposeRecipient(editor);
+
         analyzeBtn.disabled = true;
         analyzeBtn.innerHTML = '<div class="wm-sidebar-spinner"></div><span>Analyzing...</span>';
-        showSidebarLoading(resultsArea, 'Analyzing your email...');
+        showSidebarLoading(resultsArea, recipientEmail
+            ? `Analyzing email + fetching history with ${recipientEmail}…`
+            : 'Analyzing your email…');
 
         try {
             const token = await getContentAccessToken();
@@ -67,7 +62,7 @@ function wireAnalyzer(sidebar) {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ email: emailText, context, systemPrompt: SYSTEM_PROMPT })
+                body: JSON.stringify({ email: emailText, context, recipientEmail: recipientEmail || undefined })
             });
 
             if (res.ok) {
@@ -165,4 +160,28 @@ function wireAnalyzer(sidebar) {
             resetBtn(draftBtn, 'Draft', 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z');
         });
     });
+}
+
+/**
+ * Extract the first recipient email address from the active compose window.
+ * Gmail renders accepted recipients as chips with an [email] attribute.
+ */
+function _getComposeRecipient(editor) {
+    if (!editor) return null;
+    const box = editor.closest('div[role="dialog"]') ||
+                editor.closest('.M9') ||
+                editor.closest('.ip') ||
+                editor.closest('.aDh') ||
+                editor.closest('.nH.Hd');
+    if (!box) return null;
+
+    // Accepted recipient chips carry an [email] attribute
+    const chip = box.querySelector('[email]');
+    if (chip) return chip.getAttribute('email');
+
+    // Fallback: raw value in the To input before a chip is formed
+    const toInput = box.querySelector('input[aria-label="To"], input[name="to"]');
+    if (toInput && toInput.value.includes('@')) return toInput.value.trim();
+
+    return null;
 }

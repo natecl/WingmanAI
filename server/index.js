@@ -142,13 +142,12 @@ const mediaUpload = multer({
 // Email Analyzer endpoint
 app.post('/analyze-email', requireAuth, async (req, res) => {
     try {
-        const { email, context } = req.body;
+        const { email, context, recipientEmail } = req.body;
 
         if (!email || !context) {
             return res.status(400).json({ error: 'Both email and context are required' });
         }
 
-        // Input length validation
         if (email.length > 10000) {
             return res.status(400).json({ error: 'Email text must be 10,000 characters or less' });
         }
@@ -156,16 +155,58 @@ app.post('/analyze-email', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Context must be 2,000 characters or less' });
         }
 
-        const systemPrompt = `You are an expert email analyzer. The user will provide an email they have written and the context/purpose of the email. Analyze the email and provide actionable feedback on:
+        // Fetch past email history with this recipient for richer context
+        let emailHistoryBlock = '';
+        if (recipientEmail && recipientEmail.includes('@')) {
+            try {
+                const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-1. **Grammar & Spelling**: Identify any grammar, spelling, or punctuation errors.
-2. **Tone & Formality**: Evaluate whether the tone is appropriate for the given context.
-3. **Clarity & Structure**: Assess how clear and well-organized the email is.
-4. **Suggestions**: Provide specific, actionable suggestions for improvement.
+                // Emails FROM them
+                const { data: fromThem } = await supabase
+                    .from('gmail_messages')
+                    .select('subject, from_name, internal_date, body_text')
+                    .eq('user_id', req.userId)
+                    .ilike('from_email', `%${recipientEmail}%`)
+                    .order('internal_date', { ascending: false })
+                    .limit(3);
 
-Be concise but thorough. Format your response with clear sections.`;
+                // Emails TO them (user sent)
+                const { data: toThem } = await supabase
+                    .from('gmail_messages')
+                    .select('subject, from_name, internal_date, body_text')
+                    .eq('user_id', req.userId)
+                    .contains('to_emails', [recipientEmail])
+                    .order('internal_date', { ascending: false })
+                    .limit(3);
 
-        const userMessage = `Context/Purpose: ${context}\n\nEmail to analyze:\n${email}`;
+                const past = [...(fromThem || []), ...(toThem || [])]
+                    .sort((a, b) => b.internal_date - a.internal_date)
+                    .slice(0, 5);
+
+                if (past.length > 0) {
+                    emailHistoryBlock = `\n\nEmail history with ${recipientEmail} (${past.length} past messages):\n` +
+                        past.map(e => {
+                            const snippet = (e.body_text || '').substring(0, 120).replace(/\n/g, ' ');
+                            return `- Subject: "${e.subject}" | From: ${e.from_name || 'you'} | "${snippet}..."`;
+                        }).join('\n');
+                }
+            } catch (histErr) {
+                logger.warn({ err: histErr.message }, 'email_history_fetch_failed');
+            }
+        }
+
+        const systemPrompt = `You are an expert email analyzer. Analyze the email the user wrote and return a JSON array of exactly 5 objects. Each object must have: "title" (string), "icon" (single emoji), "content" (string). Sections in order:
+1. Grammar & Spelling — note specific errors or confirm it's clean
+2. Tone & Formality — evaluate appropriateness for the stated context
+3. Clarity & Structure — assess organization and readability
+4. Suggestions — 2-4 specific, actionable bullet points starting with "- "
+5. Overall Verdict — MUST start with "Score: X/10" then 1 sentence summary
+
+Use "- " to start bullet points within content. Use **text** for emphasis.
+If past email history is provided, use it to personalize the tone and suggestions.
+Return ONLY the JSON array — no markdown fences, no extra text.`;
+
+        const userMessage = `Context/Purpose: ${context}${emailHistoryBlock}\n\nEmail to analyze:\n${email}`;
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
