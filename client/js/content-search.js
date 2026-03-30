@@ -38,7 +38,9 @@ function wireSemanticSearch(sidebar) {
             });
 
             if (!response.ok) {
-                resultsEl.innerHTML = `<div class="wm-sidebar-error">${escapeHTML(response.data.error || 'Search failed')}</div>`;
+                const msg = response.data.error || 'Search failed';
+                const hint = msg.includes('timeout') ? ' Run migration 007 in Supabase to add the vector index.' : '';
+                resultsEl.innerHTML = `<div class="wm-sidebar-error">${escapeHTML(msg)}${escapeHTML(hint)}</div>`;
                 return;
             }
 
@@ -427,7 +429,9 @@ async function handleOverlaySemanticSearch() {
         });
 
         if (!response.ok) {
-            resultsContainer.innerHTML = `<div class="wm-scraper-status wm-scraper-status-error" style="display:block;">${escapeHTML(response.data.error || 'Search failed')}</div>`;
+            const msg = response.data.error || 'Search failed';
+            const hint = msg.includes('timeout') ? ' Run migration 007 in Supabase to add the vector index.' : '';
+            resultsContainer.innerHTML = `<div class="wm-scraper-status wm-scraper-status-error" style="display:block;">${escapeHTML(msg)}${escapeHTML(hint)}</div>`;
             return;
         }
 
