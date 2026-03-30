@@ -112,6 +112,7 @@ BetterEmailV2/
 │   │   ├── auth.test.js             # Auth middleware tests
 │   │   ├── client/
 │   │   │   ├── auth.test.js         # Client session refresh + provider token regression tests
+│   │   │   ├── background.test.js   # Background OAuth scope regression tests
 │   │   │   ├── content-api.test.js  # Content-script auth refresh regression tests
 │   │   │   └── content-leads.test.js # Research finder prompt/ranking unit tests
 │   │   ├── services/
@@ -163,6 +164,7 @@ BetterEmailV2/
 - **Research Finder Agent** — Fully automated agent in the sidebar Research tab. Students enter a research area of interest, their university, and the number of professors to contact (max 10). The agent searches for faculty/lab contacts at that university, prioritizes academic matches, drafts research-specific outreach emails with Codex Sonnet + user resume, and auto-sends via Gmail API. Research searches skip the broad university-domain lead cache so the requested research area drives the results, and Firecrawl search volume is scaled down from the requested contact count to avoid unnecessary credit burn.
 
 - **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. Sign-in/out is handled directly in the sidebar. Auth state changes are detected via `chrome.storage.onChanged` and the sidebar unlocks/locks instantly without page refresh. Content scripts now auto-refresh expired Supabase access tokens before protected API calls and preserve Gmail provider tokens across session refreshes.
+- **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. Sign-in/out is handled directly in the sidebar. Auth state changes are detected via `chrome.storage.onChanged` and the sidebar unlocks/locks instantly without page refresh. Content scripts now auto-refresh expired Supabase access tokens before protected API calls and preserve Gmail provider tokens across session refreshes. Google OAuth now requests both `gmail.readonly` and `gmail.send` so research finder drafts can actually be sent.
 - **Firecrawl Configuration** — Server endpoints now resolve Firecrawl credentials from the standard `FIRECRAWL_API_KEY` env var and fall back to legacy `Firecrawl_Api_Key` for backward compatibility. Scrape validation reports the standardized env name when missing.
 - **Client Runtime Config** — `client/config.js` must expose `WM_CONFIG` for content scripts. `BE_CONFIG` is kept as an alias for backward compatibility, and runtime config readers now accept either name instead of silently falling back to production.
 - **Semantic Search** — Natural language email search using OpenAI embeddings + Supabase pgvector, with Gmail sync, background indexing worker. Available in both the sidebar Search tab AND the Gmail search bar overlay with animated glow ring effect (toggled via Shift key or toggle button).

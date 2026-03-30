@@ -123,6 +123,17 @@ const WM_CONFIG = {
     API_URL: 'https://wingman-lyart-seven.vercel.app'
 };
 
+const GMAIL_OAUTH_SCOPES = [
+    'email',
+    'profile',
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.send'
+];
+
+function getGoogleOAuthScopeString() {
+    return GMAIL_OAUTH_SCOPES.join(' ');
+}
+
 async function signInWithGoogleBackground() {
     const redirectUrl = chrome.identity.getRedirectURL();
 
@@ -130,7 +141,7 @@ async function signInWithGoogleBackground() {
     const authUrl = new URL(`${WM_CONFIG.SUPABASE_URL}/auth/v1/authorize`);
     authUrl.searchParams.set('provider', 'google');
     authUrl.searchParams.set('redirect_to', redirectUrl);
-    authUrl.searchParams.set('scopes', 'email profile https://www.googleapis.com/auth/gmail.readonly');
+    authUrl.searchParams.set('scopes', getGoogleOAuthScopeString());
 
     // Launch Chrome identity flow
     const responseUrl = await new Promise((resolve, reject) => {
@@ -299,3 +310,10 @@ chrome.notifications.onClicked.addListener((notifId) => {
     });
     chrome.notifications.clear(notifId);
 });
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        GMAIL_OAUTH_SCOPES,
+        getGoogleOAuthScopeString
+    };
+}

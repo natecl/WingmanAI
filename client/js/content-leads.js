@@ -221,13 +221,21 @@ function wireLeadFinder(sidebar) {
 
             const sendResults = (sendRes.data && sendRes.data.results) || [];
             let sentCount = 0;
+            let needsScopeRefresh = false;
             for (const result of sendResults) {
                 if (result.success) {
                     sentCount++;
                     appendLog(logEl, `Sent to ${result.email}`, 'success');
                 } else {
                     appendLog(logEl, `Failed: ${result.email} -- ${result.error}`, 'error');
+                    if ((result.error || '').toLowerCase().includes('insufficient authentication scopes')) {
+                        needsScopeRefresh = true;
+                    }
                 }
+            }
+
+            if (needsScopeRefresh) {
+                appendLog(logEl, 'Google sign-in needs Gmail send permission. Sign out, sign back in, then try again.', 'error');
             }
 
             appendLog(logEl, `Done! ${sentCount}/${sendResults.length} emails sent successfully.`, sentCount > 0 ? 'success' : 'error');
