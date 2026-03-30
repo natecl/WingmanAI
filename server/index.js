@@ -30,6 +30,7 @@ const {
     lookupDomain,
     shouldUseDomainLeadCache
 } = require('./services/scraperService');
+const { getFirecrawlApiKey, getMissingScrapeEnv } = require('./services/firecrawlConfig');
 const { chunkText, buildSummaryText, embedTexts } = require('./services/embeddingService');
 const { requireAuth } = require('./middleware/auth');
 const {
@@ -389,12 +390,10 @@ app.post('/scrape-emails', requireAuth, async (req, res) => {
         }
 
         // Validate required env vars
-        const requiredVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'Firecrawl_Api_Key'];
-        for (const v of requiredVars) {
-            if (!process.env[v]) {
-                console.error(`Missing env var: ${v}`);
-                return res.status(500).json({ error: `Server misconfiguration: missing ${v}` });
-            }
+        const missingEnv = getMissingScrapeEnv(process.env);
+        if (missingEnv.length > 0) {
+            console.error(`Missing env var(s): ${missingEnv.join(', ')}`);
+            return res.status(500).json({ error: `Server misconfiguration: missing ${missingEnv.join(', ')}` });
         }
 
         // Initialize clients
@@ -404,7 +403,7 @@ app.post('/scrape-emails', requireAuth, async (req, res) => {
         );
 
         const firecrawl = new FirecrawlApp({
-            apiKey: process.env.Firecrawl_Api_Key
+            apiKey: getFirecrawlApiKey(process.env)
         });
 
         // Step 1: Normalize prompt and generate cache key
@@ -940,7 +939,7 @@ app.post('/draft-personalized-emails', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'No resume saved. Add your resume in the Settings tab first.' });
         }
 
-        const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
+        const firecrawl = new FirecrawlApp({ apiKey: getFirecrawlApiKey(process.env) });
 
         const drafts = await Promise.all(topLeads.map(async (lead) => {
             const name = (lead.name || '').trim();
@@ -1194,7 +1193,7 @@ app.post('/leads/summarize', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'leads array is required' });
 
         const topLeads = leads.slice(0, 3);
-        const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
+        const firecrawl = new FirecrawlApp({ apiKey: getFirecrawlApiKey(process.env) });
 
         const BLOCKED = ['facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'linkedin.com', 'youtube.com'];
 

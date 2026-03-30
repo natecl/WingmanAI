@@ -99,6 +99,7 @@ BetterEmailV2/
 │   │   └── auth.js                  # Supabase JWT auth middleware
 │   ├── services/
 │   │   ├── scraperService.js        # Web scraper pipeline logic
+│   │   ├── firecrawlConfig.js       # Firecrawl env key resolution + validation helpers
 │   │   ├── gmailService.js          # Gmail API ingestion & parsing
 │   │   ├── embeddingService.js      # Text chunking & OpenAI embeddings
 │   │   └── searchService.js         # Vector search & result ranking
@@ -113,6 +114,8 @@ BetterEmailV2/
 │   │   │   ├── auth.test.js         # Client session refresh + provider token regression tests
 │   │   │   ├── content-api.test.js  # Content-script auth refresh regression tests
 │   │   │   └── content-leads.test.js # Research finder prompt/ranking unit tests
+│   │   ├── services/
+│   │   │   └── firecrawlConfig.test.js # Firecrawl env resolution tests
 │   │   ├── gmailService.test.js     # Gmail service tests
 │   │   ├── embeddingService.test.js # Embedding service tests
 │   │   ├── searchService.test.js    # Search service tests
@@ -159,6 +162,7 @@ BetterEmailV2/
 - **Research Finder Agent** — Fully automated agent in the sidebar Research tab. Students enter a research area of interest, their university, and the number of professors to contact (max 10). The agent searches for faculty/lab contacts at that university, prioritizes academic matches, drafts research-specific outreach emails with Codex Sonnet + user resume, and auto-sends via Gmail API. Research searches skip the broad university-domain lead cache so the requested research area drives the results. Progress is shown in a real-time log.
 
 - **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. Sign-in/out is handled directly in the sidebar. Auth state changes are detected via `chrome.storage.onChanged` and the sidebar unlocks/locks instantly without page refresh. Content scripts now auto-refresh expired Supabase access tokens before protected API calls and preserve Gmail provider tokens across session refreshes.
+- **Firecrawl Configuration** — Server endpoints now resolve Firecrawl credentials from the standard `FIRECRAWL_API_KEY` env var and fall back to legacy `Firecrawl_Api_Key` for backward compatibility. Scrape validation reports the standardized env name when missing.
 - **Semantic Search** — Natural language email search using OpenAI embeddings + Supabase pgvector, with Gmail sync, background indexing worker. Available in both the sidebar Search tab AND the Gmail search bar overlay with animated glow ring effect (toggled via Shift key or toggle button).
 - **Resume Upload** — PDF resume upload in sidebar Settings tab for AI-powered email drafting.
 
