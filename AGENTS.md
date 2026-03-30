@@ -114,7 +114,8 @@ BetterEmailV2/
 │   │   │   ├── auth.test.js         # Client session refresh + provider token regression tests
 │   │   │   ├── background.test.js   # Background OAuth scope regression tests
 │   │   │   ├── content-api.test.js  # Content-script auth refresh regression tests
-│   │   │   └── content-leads.test.js # Research finder prompt/ranking unit tests
+│   │   │   ├── content-leads.test.js # Research finder prompt/ranking unit tests
+│   │   │   └── content-sidebar.test.js # Sidebar default tab activation regression tests
 │   │   ├── services/
 │   │   │   └── firecrawlConfig.test.js # Firecrawl env resolution tests
 │   │   ├── gmailService.test.js     # Gmail service tests
@@ -167,6 +168,7 @@ BetterEmailV2/
 - **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. Sign-in/out is handled directly in the sidebar. Auth state changes are detected via `chrome.storage.onChanged` and the sidebar unlocks/locks instantly without page refresh. Content scripts now auto-refresh expired Supabase access tokens before protected API calls and preserve Gmail provider tokens across session refreshes. Google OAuth requests `gmail.readonly`; research outreach is opened as Gmail compose drafts for manual sending rather than being auto-sent.
 - **Firecrawl Configuration** — Server endpoints now resolve Firecrawl credentials from the standard `FIRECRAWL_API_KEY` env var and fall back to legacy `Firecrawl_Api_Key` for backward compatibility. Scrape validation reports the standardized env name when missing.
 - **Client Runtime Config** — `client/config.js` must expose `WM_CONFIG` for content scripts. `BE_CONFIG` is kept as an alias for backward compatibility, and runtime config readers now accept either name instead of silently falling back to production.
+- **Sidebar Activation** — When the sidebar becomes visible or auth state is restored, the Main tab/panel is now explicitly reactivated if no panel is active. This prevents the initial empty-sidebar state until the user manually clicks `Main`.
 - **Semantic Search** — Natural language email search using OpenAI embeddings + Supabase pgvector, with Gmail sync, background indexing worker. Available in both the sidebar Search tab AND the Gmail search bar overlay with animated glow ring effect (toggled via Shift key or toggle button).
 - **Resume Upload** — PDF resume upload in sidebar Settings tab for AI-powered email drafting.
 

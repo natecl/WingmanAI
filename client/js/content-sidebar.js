@@ -325,6 +325,31 @@ function buildSidebarHTML() {
     `;
 }
 
+function activateSidebarTab(sidebar, tabName) {
+    if (!sidebar || !tabName) return;
+
+    const targetTab = sidebar.querySelector(`.wm-sidebar-tab[data-tab="${tabName}"]`);
+    const targetPanel = sidebar.querySelector(`#wm-sidebar-panel-${tabName}`);
+    if (!targetTab || !targetPanel) return;
+
+    sidebar.querySelectorAll('.wm-sidebar-tab').forEach(t => t.classList.remove('wm-sidebar-tab-active'));
+    sidebar.querySelectorAll('.wm-sidebar-panel').forEach(p => p.classList.remove('wm-sidebar-panel-active'));
+
+    targetTab.classList.add('wm-sidebar-tab-active');
+    targetPanel.classList.add('wm-sidebar-panel-active');
+}
+
+function ensureSidebarHasActiveTab(sidebar, fallbackTab = 'main') {
+    if (!sidebar) return;
+
+    const activeTab = sidebar.querySelector('.wm-sidebar-tab.wm-sidebar-tab-active');
+    const activePanel = sidebar.querySelector('.wm-sidebar-panel.wm-sidebar-panel-active');
+
+    if (!activeTab || !activePanel) {
+        activateSidebarTab(sidebar, fallbackTab);
+    }
+}
+
 
 /* =========================================================
    SIDEBAR EVENT WIRING
@@ -342,15 +367,13 @@ function wireSidebarEvents(sidebar, toggle) {
         sidebar.classList.remove('wm-sidebar-collapsed');
         document.body.classList.add('wm-sidebar-active');
         document.documentElement.classList.add('wm-sidebar-active');
+        ensureSidebarHasActiveTab(sidebar, 'main');
     });
 
     // --- Tab switching ---
     sidebar.querySelectorAll('.wm-sidebar-tab').forEach(tab => {
         tab.addEventListener('click', () => {
-            sidebar.querySelectorAll('.wm-sidebar-tab').forEach(t => t.classList.remove('wm-sidebar-tab-active'));
-            sidebar.querySelectorAll('.wm-sidebar-panel').forEach(p => p.classList.remove('wm-sidebar-panel-active'));
-            tab.classList.add('wm-sidebar-tab-active');
-            sidebar.querySelector(`#wm-sidebar-panel-${tab.dataset.tab}`).classList.add('wm-sidebar-panel-active');
+            activateSidebarTab(sidebar, tab.dataset.tab);
         });
     });
 
@@ -418,14 +441,12 @@ async function refreshSidebarAuth() {
     if (authed) {
         authCard.style.display = 'none';
         tabs.style.display = 'flex';
+        ensureSidebarHasActiveTab(sidebar, 'main');
         if (session.user && session.user.email) {
             userEmail.textContent = session.user.email;
             userEmail.style.display = 'inline';
         }
         signoutBtn.style.display = 'flex';
-        panels.forEach(p => {
-            if (p.classList.contains('wm-sidebar-panel-active')) p.style.display = '';
-        });
         // Load resume data
         loadSidebarResume(session.access_token);
         // Auto-sync emails
@@ -439,10 +460,18 @@ async function refreshSidebarAuth() {
         signoutBtn.style.display = 'none';
         // Hide all panels
         panels.forEach(p => p.classList.remove('wm-sidebar-panel-active'));
+        sidebar.querySelectorAll('.wm-sidebar-tab').forEach(t => t.classList.remove('wm-sidebar-tab-active'));
     }
 
     // Also refresh semantic search overlay auth
     refreshSemanticSearchAuth(authed);
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        activateSidebarTab,
+        ensureSidebarHasActiveTab
+    };
 }
 
 
