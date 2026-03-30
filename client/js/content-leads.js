@@ -1,6 +1,7 @@
 /**
- * Wingman V2 — Lead Finder Agent
- * Scrapes leads, drafts personalized emails, and auto-sends via Gmail API.
+ * Wingman V2 — Research Finder Agent
+ * Finds professors at a student's university based on research interest,
+ * drafts personalized outreach, and auto-sends via Gmail API.
  */
 
 
@@ -14,6 +15,32 @@ function appendLog(logEl, message, type = 'info') {
     entry.textContent = message;
     logEl.appendChild(entry);
     logEl.scrollTop = logEl.scrollHeight;
+}
+
+function buildResearchSearchPrompt(researchInterest, university) {
+    return `${researchInterest} professors faculty research lab at ${university}`.trim();
+}
+
+function buildResearchEmailPurpose(researchInterest, university) {
+    return `The sender is a student interested in ${researchInterest} and wants to learn about undergraduate or student research opportunities with professors at ${university}. Ask for a short conversation or advice on how to get involved, while sounding specific and academically serious.`;
+}
+
+function rankResearchMatches(leads) {
+    const ACADEMIC_TITLE_RE = /\b(professor|faculty|lab director|principal investigator|research group|department|school of|college of|lecturer|chair)\b/i;
+    const RESEARCH_TITLE_RE = /\b(research|ai|ml|machine learning|robotics|vision|systems|nlp|security|data|science|engineering)\b/i;
+
+    return [...leads].sort((a, b) => {
+        const score = (lead) => {
+            const detail = `${lead?.detail || ''} ${lead?.sourceUrl || ''}`.toLowerCase();
+            let total = 0;
+            if (ACADEMIC_TITLE_RE.test(detail)) total += 3;
+            if (RESEARCH_TITLE_RE.test(detail)) total += 1;
+            if ((lead?.email || '').endsWith('.edu')) total += 2;
+            return total;
+        };
+
+        return score(b) - score(a);
+    });
 }
 
 async function getProviderToken() {
@@ -41,12 +68,12 @@ function resetLeadFinderButton(btn) {
     svg.appendChild(path2);
     btn.textContent = '';
     btn.appendChild(svg);
-    btn.appendChild(document.createTextNode(' Find & Send'));
+    btn.appendChild(document.createTextNode(' Find Professors & Send'));
 }
 
 
 /* =========================================================
-   LEAD FINDER AGENT (sidebar)
+   RESEARCH FINDER AGENT (sidebar)
 ========================================================= */
 
 function wireLeadFinder(sidebar) {
@@ -63,17 +90,22 @@ function wireLeadFinder(sidebar) {
         if (running) return;
 
         // --- Validate inputs ---
-        const query = input.value.trim();
-        if (!query) {
+        const researchInterest = input.value.trim();
+        if (!researchInterest) {
             statusEl.className = 'wm-sidebar-lead-status wm-status-error';
-            statusEl.textContent = 'Please enter a search query.';
+            statusEl.textContent = 'Enter a research area of interest.';
             return;
         }
 
         const count = Math.min(Math.max(parseInt(countInput.value) || 5, 1), 10);
         countInput.value = count;
 
-        const org = orgInput.value.trim();
+        const university = orgInput.value.trim();
+        if (!university) {
+            statusEl.className = 'wm-sidebar-lead-status wm-status-error';
+            statusEl.textContent = 'Enter your university.';
+            return;
+        }
 
         // --- Pre-flight checks ---
         const token = await getContentAccessToken();
@@ -94,18 +126,19 @@ function wireLeadFinder(sidebar) {
         running = true;
         logEl.textContent = '';
         statusEl.className = 'wm-sidebar-lead-status wm-status-loading';
-        statusEl.textContent = 'Agent running...';
+        statusEl.textContent = 'Research finder running...';
         btn.disabled = true;
         const spinner = document.createElement('div');
         spinner.className = 'wm-sidebar-spinner';
         btn.textContent = '';
         btn.appendChild(spinner);
-        btn.appendChild(document.createTextNode(' Running...'));
+        btn.appendChild(document.createTextNode(' Researching...'));
 
         try {
-            // -- Step 1: Scrape leads --
-            const searchPrompt = org ? `${query} at ${org}` : query;
-            appendLog(logEl, `Searching for leads: "${searchPrompt}"...`, 'info');
+            // -- Step 1: Find research-matched professors --
+            const searchPrompt = buildResearchSearchPrompt(researchInterest, university);
+            const emailPurpose = buildResearchEmailPurpose(researchInterest, university);
+            appendLog(logEl, `Searching ${university} for professors working in ${researchInterest}...`, 'info');
 
             const scrapeRes = await apiFetch(`${getApiBase()}/scrape-emails`, {
                 method: 'POST',
@@ -113,29 +146,29 @@ function wireLeadFinder(sidebar) {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ prompt: searchPrompt })
+                body: JSON.stringify({ prompt: searchPrompt, searchMode: 'research' })
             });
 
             if (!scrapeRes.ok) {
-                appendLog(logEl, (scrapeRes.data && scrapeRes.data.error) || 'Search failed.', 'error');
+                appendLog(logEl, (scrapeRes.data && scrapeRes.data.error) || 'Research search failed.', 'error');
                 statusEl.className = 'wm-sidebar-lead-status wm-status-error';
-                statusEl.textContent = 'Search failed.';
+                statusEl.textContent = 'Research search failed.';
                 return;
             }
 
             const allResults = (scrapeRes.data && scrapeRes.data.results) || [];
             if (allResults.length === 0) {
-                appendLog(logEl, 'No leads found. Try a different search.', 'error');
+                appendLog(logEl, 'No professor matches found. Try a broader research area or a more specific university name.', 'error');
                 statusEl.className = 'wm-sidebar-lead-status wm-status-error';
                 statusEl.textContent = 'No results found.';
                 return;
             }
 
-            const selectedLeads = allResults.slice(0, count);
-            appendLog(logEl, `Found ${allResults.length} leads. Selected top ${selectedLeads.length}.`, 'success');
+            const selectedLeads = rankResearchMatches(allResults).slice(0, count);
+            appendLog(logEl, `Found ${allResults.length} matches. Selected ${selectedLeads.length} likely professor contacts.`, 'success');
 
             // -- Step 2: Draft personalized emails --
-            appendLog(logEl, `Drafting ${selectedLeads.length} personalized emails...`, 'info');
+            appendLog(logEl, `Drafting ${selectedLeads.length} research outreach emails...`, 'info');
 
             const draftRes = await apiFetch(`${getApiBase()}/draft-personalized-emails`, {
                 method: 'POST',
@@ -143,7 +176,7 @@ function wireLeadFinder(sidebar) {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ leads: selectedLeads, limit: count })
+                body: JSON.stringify({ leads: selectedLeads, limit: count, purpose: emailPurpose })
             });
 
             if (!draftRes.ok) {
@@ -165,7 +198,7 @@ function wireLeadFinder(sidebar) {
                 return;
             }
 
-            appendLog(logEl, `Drafted ${drafts.length} personalized emails.`, 'success');
+            appendLog(logEl, `Drafted ${drafts.length} personalized research emails.`, 'success');
 
             // -- Step 3: Auto-send via Gmail API --
             appendLog(logEl, `Sending ${drafts.length} emails...`, 'info');
@@ -202,7 +235,7 @@ function wireLeadFinder(sidebar) {
             statusEl.textContent = `${sentCount}/${sendResults.length} emails sent`;
 
         } catch (err) {
-            console.error('[Wingman] Lead finder agent error:', err);
+            console.error('[Wingman] Research finder agent error:', err);
             appendLog(logEl, "Can't reach server. Is the backend running?", 'error');
             statusEl.className = 'wm-sidebar-lead-status wm-status-error';
             statusEl.textContent = 'Agent error.';
@@ -222,4 +255,13 @@ function wireLeadFinder(sidebar) {
             if (e.key === 'Enter') runAgent();
         });
     });
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        appendLog,
+        buildResearchSearchPrompt,
+        buildResearchEmailPurpose,
+        rankResearchMatches
+    };
 }

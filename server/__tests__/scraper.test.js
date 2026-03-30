@@ -6,7 +6,8 @@ const {
     searchWithFirecrawl,
     scrapeEmails,
     upsertResults,
-    lookupDomain
+    lookupDomain,
+    shouldUseDomainLeadCache
 } = require('../services/scraperService');
 
 // --- Mock factories ---
@@ -163,6 +164,22 @@ describe('checkEmailLeads', () => {
         const supabase = mockSupabase({ selectMany: [] });
         const result = await checkEmailLeads(supabase, 'ufl.edu');
         expect(result).toBeNull();
+    });
+});
+
+
+// =========================================================
+// shouldUseDomainLeadCache
+// =========================================================
+
+describe('shouldUseDomainLeadCache', () => {
+    test('returns false for research searches', () => {
+        expect(shouldUseDomainLeadCache('research')).toBe(false);
+    });
+
+    test('returns true for default searches', () => {
+        expect(shouldUseDomainLeadCache(undefined)).toBe(true);
+        expect(shouldUseDomainLeadCache('generic')).toBe(true);
     });
 });
 

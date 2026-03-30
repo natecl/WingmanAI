@@ -71,7 +71,7 @@ function chromeStorageGet(key) {
 
 async function isAuthenticated() {
     try {
-        const session = await chromeStorageGet('wm_supabase_session');
+        const session = await getContentSession();
         return !!(session && session.access_token);
     } catch { return false; }
 }
@@ -82,13 +82,26 @@ function getApiBase() {
 
 async function getContentAccessToken() {
     try {
-        const session = await chromeStorageGet('wm_supabase_session');
+        const session = await getContentSession();
         return session ? (session.access_token || null) : null;
     } catch { return null; }
 }
 
 async function getContentSession() {
-    return chromeStorageGet('wm_supabase_session');
+    try {
+        const session = await chromeStorageGet('wm_supabase_session');
+        if (!session) return null;
+
+        const now = Math.floor(Date.now() / 1000);
+        const isExpired = !!session.expires_at && now >= session.expires_at - 60;
+
+        if (!isExpired) return session;
+        if (typeof refreshAccessToken !== 'function') return null;
+
+        return await refreshAccessToken(session.refresh_token);
+    } catch {
+        return null;
+    }
 }
 
 // Listen for auth state changes and refresh sidebar
@@ -98,3 +111,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
         refreshSidebarAuth();
     }
 });
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        apiFetch,
+        chromeStorageGet,
+        isAuthenticated,
+        getApiBase,
+        getContentAccessToken,
+        getContentSession
+    };
+}

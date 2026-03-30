@@ -27,7 +27,8 @@ const {
     searchWithFirecrawl,
     scrapeEmails,
     upsertResults,
-    lookupDomain
+    lookupDomain,
+    shouldUseDomainLeadCache
 } = require('./services/scraperService');
 const { chunkText, buildSummaryText, embedTexts } = require('./services/embeddingService');
 const { requireAuth } = require('./middleware/auth');
@@ -377,7 +378,7 @@ app.get('/ai/reply-timing', requireAuth, async (req, res) => {
 // Web Scraper endpoint
 app.post('/scrape-emails', requireAuth, async (req, res) => {
     try {
-        const { prompt } = req.body;
+        const { prompt, searchMode } = req.body;
 
         if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
             return res.status(400).json({ error: 'A non-empty "prompt" field is required' });
@@ -420,12 +421,16 @@ app.post('/scrape-emails', requireAuth, async (req, res) => {
             return res.json({ results: cachedResult, source: 'cache' });
         }
 
-        // Step 3: Check email_leads table for existing domain data
-        const existingLeads = await checkEmailLeads(supabase, domain);
-        if (existingLeads && existingLeads.length >= 10) {
-            metrics.inc('scrape', 'cache_hits');
-            logger.info({ userId: req.userId, prompt: normalized, source: 'leads_cache' }, 'scrape_complete');
-            return res.json({ results: existingLeads, source: 'leads_cache' });
+        // Step 3: Check email_leads table for existing domain data.
+        // Skip this for research finder requests because domain-wide university
+        // caches are too broad and can ignore the requested research area.
+        if (shouldUseDomainLeadCache(searchMode)) {
+            const existingLeads = await checkEmailLeads(supabase, domain);
+            if (existingLeads && existingLeads.length >= 10) {
+                metrics.inc('scrape', 'cache_hits');
+                logger.info({ userId: req.userId, prompt: normalized, source: 'leads_cache' }, 'scrape_complete');
+                return res.json({ results: existingLeads, source: 'leads_cache' });
+            }
         }
 
         // Step 4: Full pipeline - Firecrawl Search → Scrape

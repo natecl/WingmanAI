@@ -109,6 +109,10 @@ BetterEmailV2/
 │   ├── __tests__/
 │   │   ├── scraper.test.js          # Scraper unit tests
 │   │   ├── auth.test.js             # Auth middleware tests
+│   │   ├── client/
+│   │   │   ├── auth.test.js         # Client session refresh + provider token regression tests
+│   │   │   ├── content-api.test.js  # Content-script auth refresh regression tests
+│   │   │   └── content-leads.test.js # Research finder prompt/ranking unit tests
 │   │   ├── gmailService.test.js     # Gmail service tests
 │   │   ├── embeddingService.test.js # Embedding service tests
 │   │   ├── searchService.test.js    # Search service tests
@@ -139,7 +143,7 @@ BetterEmailV2/
 
 ## API Endpoints
 - `POST /analyze-email` — Email quality analysis (OpenRouter/Gemini)
-- `POST /scrape-emails` — Web scraper for lead generation (OpenAI + Firecrawl + Supabase cache)
+- `POST /scrape-emails` — Web scraper for contact discovery. Supports research-focused searches via `searchMode: "research"` to skip broad domain lead cache and honor the full prompt.
 - `POST /gmail/sync` — Gmail email ingestion (requires auth, accepts provider_token)
 - `POST /search` — Semantic email search (requires auth, accepts query + filters)
 - `POST /draft-email` — Draft a single email from resume + job description (Codex Sonnet, requires auth)
@@ -152,9 +156,9 @@ BetterEmailV2/
 - **Copilot Sidebar** — Persistent right-aligned sidebar that is the main control center for all BetterEmail features. Gmail shifts left to accommodate the 350px sidebar. Replaces the old extension popup as the primary UI.
 - **Email Quality Analyzer** — Sidebar compose analyzer reads from the active Gmail compose window and provides context-aware AI feedback. Also supports AI-powered email drafting from resume.
 - **Follow-up Reminders** — Toast notification after sending, with custom scheduling. Reminders are also displayed in the sidebar's Main tab with AI-generated summaries (Gemini Flash). Smart heuristics auto-dismiss reminders when a reply is sent in the same thread (Re: prefix or threadId match).
-- **Lead Finder Agent** — Fully automated agent in the sidebar Leads tab. User enters a search query (e.g., "CS professors at UF", "AI startups in San Francisco"), organization/university name, and number of emails to send (max 10). The agent scrapes contacts via Firecrawl (3-layer caching), drafts personalized emails with Codex Sonnet + user resume, and auto-sends all emails via Gmail API. University input supports a hardcoded domain map (~24 universities) with dynamic Firecrawl fallback for unknown organizations. Progress is shown in a real-time log.
+- **Research Finder Agent** — Fully automated agent in the sidebar Research tab. Students enter a research area of interest, their university, and the number of professors to contact (max 10). The agent searches for faculty/lab contacts at that university, prioritizes academic matches, drafts research-specific outreach emails with Codex Sonnet + user resume, and auto-sends via Gmail API. Research searches skip the broad university-domain lead cache so the requested research area drives the results. Progress is shown in a real-time log.
 
-- **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. Sign-in/out is handled directly in the sidebar. Auth state changes are detected via `chrome.storage.onChanged` and the sidebar unlocks/locks instantly without page refresh.
+- **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. Sign-in/out is handled directly in the sidebar. Auth state changes are detected via `chrome.storage.onChanged` and the sidebar unlocks/locks instantly without page refresh. Content scripts now auto-refresh expired Supabase access tokens before protected API calls and preserve Gmail provider tokens across session refreshes.
 - **Semantic Search** — Natural language email search using OpenAI embeddings + Supabase pgvector, with Gmail sync, background indexing worker. Available in both the sidebar Search tab AND the Gmail search bar overlay with animated glow ring effect (toggled via Shift key or toggle button).
 - **Resume Upload** — PDF resume upload in sidebar Settings tab for AI-powered email drafting.
 

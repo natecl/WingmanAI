@@ -42,6 +42,10 @@ function lookupDomain(org) {
     return { domain: null, matched: false };
 }
 
+function shouldUseDomainLeadCache(searchMode) {
+    return searchMode !== 'research';
+}
+
 /**
  * Normalize user prompt: lowercase, trim whitespace.
  * Extract a likely domain keyword from the prompt.
@@ -286,5 +290,6 @@ module.exports = {
     searchWithFirecrawl,
     scrapeEmails,
     upsertResults,
-    lookupDomain
+    lookupDomain,
+    shouldUseDomainLeadCache
 };

@@ -1,8 +1,15 @@
-/* Wingman V2 - Sidebar Lead Finder Agent */
+/* Wingman V2 - Sidebar Research Finder Agent */
 
 /* =========================================================
-   SIDEBAR: LEAD FINDER INPUTS & BUTTON
+   SIDEBAR: RESEARCH FINDER INPUTS & BUTTON
 ========================================================= */
+
+.wm-sidebar-lead-hint {
+    margin: 0 0 0.85rem;
+    color: var(--wm-text-dim);
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
 
 .wm-sidebar-lead-input {
     width: 100%;

@@ -62,6 +62,7 @@ async function refreshAccessToken(refreshToken) {
     if (!refreshToken) return null;
 
     try {
+        const existingSession = await getSession();
         const response = await fetch(`${WM_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
             method: 'POST',
             headers: {
@@ -82,8 +83,10 @@ async function refreshAccessToken(refreshToken) {
             refresh_token: data.refresh_token,
             expires_at: data.expires_at,
             user: data.user,
-            provider_token: data.provider_token || null,
-            provider_refresh_token: data.provider_refresh_token || null
+            // Supabase refresh responses may omit provider tokens. Preserve the
+            // original Gmail credentials so Gmail API features keep working.
+            provider_token: data.provider_token || existingSession?.provider_token || null,
+            provider_refresh_token: data.provider_refresh_token || existingSession?.provider_refresh_token || null
         };
 
         await saveSession(session);
@@ -141,4 +144,16 @@ async function signOut() {
     }
 
     await clearSession();
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        getSession,
+        saveSession,
+        clearSession,
+        getAccessToken,
+        refreshAccessToken,
+        signInWithGoogle,
+        signOut
+    };
 }

@@ -88,7 +88,7 @@ function buildSidebarHTML() {
         <!-- Tab navigation (shown when signed in) -->
         <div class="wm-sidebar-tabs" id="wm-sidebar-tabs" style="display:none;">
             <button class="wm-sidebar-tab wm-sidebar-tab-active" data-tab="main">Main</button>
-            <button class="wm-sidebar-tab" data-tab="leads">Leads</button>
+            <button class="wm-sidebar-tab" data-tab="leads">Research</button>
             <button class="wm-sidebar-tab" data-tab="search">Search</button>
             <button class="wm-sidebar-tab" data-tab="media">Media</button>
             <button class="wm-sidebar-tab" data-tab="settings">Settings</button>
@@ -175,7 +175,7 @@ function buildSidebarHTML() {
             </div>
         </div>
 
-        <!-- Lead Finder Panel -->
+        <!-- Research Finder Panel -->
         <div class="wm-sidebar-panel" id="wm-sidebar-panel-leads">
             <div class="wm-sidebar-card">
                 <div class="wm-sidebar-section-title">
@@ -183,20 +183,23 @@ function buildSidebarHTML() {
                         <circle cx="11" cy="11" r="8"/>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                     </svg>
-                    <span>Lead Finder</span>
+                    <span>Research Finder</span>
+                </div>
+                <div class="wm-sidebar-lead-hint">
+                    Match your research interests with professors at your university, then draft personalized outreach.
                 </div>
                 <input type="text" class="wm-sidebar-lead-input" id="wm-sidebar-lead-input"
-                    placeholder="e.g. CS professors at UF, startups in San Francisco">
+                    placeholder="Research area of interest (e.g. computer vision, robotics, NLP)">
                 <input type="text" class="wm-sidebar-lead-input" id="wm-sidebar-lead-org"
-                    placeholder="Organization/University (e.g. UF, MIT, Y Combinator)">
+                    placeholder="University (e.g. University of Florida, UF, MIT)">
                 <input type="number" class="wm-sidebar-lead-input wm-sidebar-lead-count" id="wm-sidebar-lead-count"
-                    min="1" max="10" value="5" placeholder="# of emails to send (max 10)">
+                    min="1" max="10" value="5" placeholder="Professors to contact (max 10)">
                 <button class="wm-sidebar-lead-btn" id="wm-sidebar-lead-btn">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 2L11 13"/>
                         <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
                     </svg>
-                    Find &amp; Send
+                    Find Professors &amp; Send
                 </button>
                 <div class="wm-sidebar-lead-status" id="wm-sidebar-lead-status"></div>
                 <div class="wm-sidebar-lead-log" id="wm-sidebar-lead-log"></div>
