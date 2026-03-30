@@ -1603,8 +1603,17 @@ app.use((err, req, res, _next) => {
 });
 
 // Start server
-app.listen(port, () => {
+const server = app.listen(port, () => {
     logger.info({ port }, 'server_started');
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        logger.error({ port }, 'port_in_use — kill the existing process or use a different PORT');
+    } else {
+        logger.error({ err: err.message }, 'server_error');
+    }
+    process.exit(1);
 });
 
 module.exports = app;

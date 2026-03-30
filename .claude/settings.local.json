@@ -8,7 +8,11 @@
       "Bash(npm install:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(node index.js)",
+      "Bash(node -e \"const express = require\\(''express''\\); console.log\\(''Express version:'', require\\(''express/package.json''\\).version\\)\")",
+      "Bash(timeout 8 node -e \":*)",
+      "Bash(node -e \":*)"
     ]
   }
 }
