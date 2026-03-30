@@ -39,4 +39,17 @@ describe('client research finder helpers', () => {
 
         expect(ranked[0].email).toBe('ada@ufl.edu');
     });
+
+    test('buildGmailComposeUrl creates a prefilled Gmail compose URL', () => {
+        const url = helpers.buildGmailComposeUrl({
+            email: 'prof@ufl.edu',
+            subject: 'Research Interest',
+            body: 'Hello Professor'
+        });
+
+        expect(url).toContain('https://mail.google.com/mail/u/0/?');
+        expect(url).toContain('to=prof%40ufl.edu');
+        expect(url).toContain('su=Research+Interest');
+        expect(url).toContain('body=Hello+Professor');
+    });
 });

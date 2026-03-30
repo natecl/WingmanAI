@@ -52,6 +52,27 @@ async function getProviderToken() {
     });
 }
 
+function buildGmailComposeUrl(draft) {
+    const params = new URLSearchParams({
+        view: 'cm',
+        fs: '1',
+        tf: '1',
+        to: draft?.email || '',
+        su: draft?.subject || '',
+        body: draft?.body || ''
+    });
+    return `https://mail.google.com/mail/u/0/?${params.toString()}`;
+}
+
+function openDraftComposeTab(draft) {
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage({
+            type: 'OPEN_TAB',
+            url: buildGmailComposeUrl(draft)
+        }, () => resolve());
+    });
+}
+
 function resetLeadFinderButton(btn) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 24 24');
@@ -112,13 +133,6 @@ function wireLeadFinder(sidebar) {
         if (!token) {
             statusEl.className = 'wm-sidebar-lead-status wm-status-error';
             statusEl.textContent = 'Please sign in first.';
-            return;
-        }
-
-        const providerToken = await getProviderToken();
-        if (!providerToken) {
-            statusEl.className = 'wm-sidebar-lead-status wm-status-error';
-            statusEl.textContent = 'Gmail access required. Sign out and back in to refresh.';
             return;
         }
 
@@ -200,47 +214,17 @@ function wireLeadFinder(sidebar) {
 
             appendLog(logEl, `Drafted ${drafts.length} personalized research emails.`, 'success');
 
-            // -- Step 3: Auto-send via Gmail API --
-            appendLog(logEl, `Sending ${drafts.length} emails...`, 'info');
+            // -- Step 3: Open Gmail compose drafts --
+            appendLog(logEl, `Opening ${drafts.length} Gmail draft${drafts.length === 1 ? '' : 's'}...`, 'info');
 
-            const sendRes = await apiFetch(`${getApiBase()}/gmail/send`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ provider_token: providerToken, drafts: drafts })
-            });
-
-            if (!sendRes.ok) {
-                appendLog(logEl, (sendRes.data && sendRes.data.error) || 'Failed to send emails.', 'error');
-                statusEl.className = 'wm-sidebar-lead-status wm-status-error';
-                statusEl.textContent = 'Sending failed.';
-                return;
+            for (const draft of drafts) {
+                await openDraftComposeTab(draft);
+                appendLog(logEl, `Opened draft for ${draft.email}`, 'success');
             }
 
-            const sendResults = (sendRes.data && sendRes.data.results) || [];
-            let sentCount = 0;
-            let needsScopeRefresh = false;
-            for (const result of sendResults) {
-                if (result.success) {
-                    sentCount++;
-                    appendLog(logEl, `Sent to ${result.email}`, 'success');
-                } else {
-                    appendLog(logEl, `Failed: ${result.email} -- ${result.error}`, 'error');
-                    if ((result.error || '').toLowerCase().includes('insufficient authentication scopes')) {
-                        needsScopeRefresh = true;
-                    }
-                }
-            }
-
-            if (needsScopeRefresh) {
-                appendLog(logEl, 'Google sign-in needs Gmail send permission. Sign out, sign back in, then try again.', 'error');
-            }
-
-            appendLog(logEl, `Done! ${sentCount}/${sendResults.length} emails sent successfully.`, sentCount > 0 ? 'success' : 'error');
-            statusEl.className = `wm-sidebar-lead-status ${sentCount > 0 ? 'wm-status-success' : 'wm-status-error'}`;
-            statusEl.textContent = `${sentCount}/${sendResults.length} emails sent`;
+            appendLog(logEl, `Done! Opened ${drafts.length} Gmail draft${drafts.length === 1 ? '' : 's'}. Review and send manually.`, 'success');
+            statusEl.className = 'wm-sidebar-lead-status wm-status-success';
+            statusEl.textContent = `${drafts.length} draft${drafts.length === 1 ? '' : 's'} opened`;
 
         } catch (err) {
             console.error('[Wingman] Research finder agent error:', err);
@@ -268,6 +252,8 @@ function wireLeadFinder(sidebar) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         appendLog,
+        buildGmailComposeUrl,
+        openDraftComposeTab,
         buildResearchSearchPrompt,
         buildResearchEmailPurpose,
         rankResearchMatches

@@ -45,8 +45,8 @@ describe('client background OAuth scopes', () => {
         delete global.chrome;
     });
 
-    test('includes Gmail send scope in the Google OAuth scope string', () => {
-        expect(background.getGoogleOAuthScopeString()).toContain('https://www.googleapis.com/auth/gmail.send');
+    test('requests Gmail readonly scope but not Gmail send scope', () => {
         expect(background.GMAIL_OAUTH_SCOPES).toContain('https://www.googleapis.com/auth/gmail.readonly');
+        expect(background.getGoogleOAuthScopeString()).not.toContain('https://www.googleapis.com/auth/gmail.send');
     });
 });
