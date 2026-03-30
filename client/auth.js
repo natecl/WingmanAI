@@ -8,6 +8,12 @@
 
 const AUTH_STORAGE_KEY = 'wm_supabase_session';
 
+function getAuthConfig() {
+    if (typeof WM_CONFIG !== 'undefined') return WM_CONFIG;
+    if (typeof BE_CONFIG !== 'undefined') return BE_CONFIG;
+    throw new Error('Missing client config');
+}
+
 /**
  * Get the current stored session (if any).
  * Returns { access_token, refresh_token, user, provider_token, provider_refresh_token, expires_at } or null.
@@ -63,11 +69,12 @@ async function refreshAccessToken(refreshToken) {
 
     try {
         const existingSession = await getSession();
-        const response = await fetch(`${WM_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        const config = getAuthConfig();
+        const response = await fetch(`${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': WM_CONFIG.SUPABASE_ANON_KEY
+                'apikey': config.SUPABASE_ANON_KEY
             },
             body: JSON.stringify({ refresh_token: refreshToken })
         });
@@ -131,11 +138,12 @@ async function signOut() {
     // Attempt to sign out from Supabase (best-effort)
     if (session && session.access_token) {
         try {
-            await fetch(`${WM_CONFIG.SUPABASE_URL}/auth/v1/logout`, {
+            const config = getAuthConfig();
+            await fetch(`${config.SUPABASE_URL}/auth/v1/logout`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`,
-                    'apikey': WM_CONFIG.SUPABASE_ANON_KEY
+                    'apikey': config.SUPABASE_ANON_KEY
                 }
             });
         } catch {
@@ -151,6 +159,7 @@ if (typeof module !== 'undefined' && module.exports) {
         getSession,
         saveSession,
         clearSession,
+        getAuthConfig,
         getAccessToken,
         refreshAccessToken,
         signInWithGoogle,

@@ -230,6 +230,17 @@ describe('searchWithFirecrawl', () => {
         const result = await searchWithFirecrawl(firecrawl, 'query');
         expect(result).toEqual(['https://valid.com/dir']);
     });
+
+    test('uses a caller-provided search limit when present', async () => {
+        const firecrawl = mockFirecrawl({}, []);
+
+        await searchWithFirecrawl(firecrawl, 'query', 'ufl.edu', 3);
+
+        expect(firecrawl.search).toHaveBeenCalledWith(
+            'query email contact faculty directory site:ufl.edu',
+            { limit: 3 }
+        );
+    });
 });
 
 

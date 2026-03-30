@@ -13,7 +13,7 @@ describe('client content API auth helpers', () => {
             }
         };
 
-        global.WM_CONFIG = {
+        global.BE_CONFIG = {
             API_URL: 'https://api.example.com'
         };
 
@@ -46,6 +46,7 @@ describe('client content API auth helpers', () => {
 
     afterEach(() => {
         delete global.WM_CONFIG;
+        delete global.BE_CONFIG;
         delete global.refreshAccessToken;
         delete global.chrome;
         delete global.refreshSidebarAuth;
@@ -69,5 +70,9 @@ describe('client content API auth helpers', () => {
 
         expect(global.refreshAccessToken).not.toHaveBeenCalled();
         expect(token).toBe('valid-access-token');
+    });
+
+    test('reads API config from BE_CONFIG when WM_CONFIG is absent', async () => {
+        expect(contentApi.getApiBase()).toBe('https://api.example.com');
     });
 });

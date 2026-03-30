@@ -15,7 +15,7 @@ describe('client auth helpers', () => {
             }
         };
 
-        global.WM_CONFIG = {
+        global.BE_CONFIG = {
             SUPABASE_URL: 'https://test.supabase.co',
             SUPABASE_ANON_KEY: 'test-anon-key'
         };
@@ -52,6 +52,7 @@ describe('client auth helpers', () => {
 
     afterEach(() => {
         delete global.WM_CONFIG;
+        delete global.BE_CONFIG;
         delete global.fetch;
         delete global.chrome;
     });
@@ -77,5 +78,12 @@ describe('client auth helpers', () => {
         }));
         expect(storageState.wm_supabase_session.provider_token).toBe('gmail-provider-token');
         expect(storageState.wm_supabase_session.provider_refresh_token).toBe('gmail-provider-refresh-token');
+    });
+
+    test('reads auth config from BE_CONFIG when WM_CONFIG is absent', () => {
+        expect(auth.getAuthConfig()).toEqual({
+            SUPABASE_URL: 'https://test.supabase.co',
+            SUPABASE_ANON_KEY: 'test-anon-key'
+        });
     });
 });

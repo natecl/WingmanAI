@@ -122,10 +122,11 @@ async function checkEmailLeads(supabase, domain) {
  * Use Firecrawl's web search to find relevant URLs for the given prompt.
  * Returns array of URL strings from real search results.
  */
-async function searchWithFirecrawl(firecrawl, prompt, domain) {
+async function searchWithFirecrawl(firecrawl, prompt, domain, limit = 10) {
     const siteFilter = (domain && domain !== 'general') ? ` site:${domain}` : '';
     const searchQuery = `${prompt} email contact faculty directory${siteFilter}`;
-    const results = await firecrawl.search(searchQuery, { limit: 10 });
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 10);
+    const results = await firecrawl.search(searchQuery, { limit: safeLimit });
     if (!results.success || !results.data) return [];
     return results.data
         .map(r => r.url)

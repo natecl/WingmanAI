@@ -379,7 +379,7 @@ app.get('/ai/reply-timing', requireAuth, async (req, res) => {
 // Web Scraper endpoint
 app.post('/scrape-emails', requireAuth, async (req, res) => {
     try {
-        const { prompt, searchMode } = req.body;
+        const { prompt, searchMode, desiredCount } = req.body;
 
         if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
             return res.status(400).json({ error: 'A non-empty "prompt" field is required' });
@@ -434,7 +434,12 @@ app.post('/scrape-emails', requireAuth, async (req, res) => {
 
         // Step 4: Full pipeline - Firecrawl Search → Scrape
         metrics.inc('scrape', 'live_runs');
-        const searchedUrls = await searchWithFirecrawl(firecrawl, prompt, domain);
+        const requestedCount = Math.min(Math.max(parseInt(desiredCount, 10) || 5, 1), 10);
+        const searchLimit = searchMode === 'research'
+            ? Math.min(Math.max(requestedCount * 2, 3), 6)
+            : 10;
+
+        const searchedUrls = await searchWithFirecrawl(firecrawl, prompt, domain, searchLimit);
         const scrapedResults = await scrapeEmails(firecrawl, searchedUrls);
 
         // Step 5: Save results to database

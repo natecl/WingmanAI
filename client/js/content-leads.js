@@ -146,7 +146,7 @@ function wireLeadFinder(sidebar) {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ prompt: searchPrompt, searchMode: 'research' })
+                body: JSON.stringify({ prompt: searchPrompt, searchMode: 'research', desiredCount: count })
             });
 
             if (!scrapeRes.ok) {

@@ -53,6 +53,12 @@ function apiFetch(url, options = {}) {
 
 const REFRESH_MSG = 'Extension was reloaded — please refresh this Gmail tab (Ctrl+Shift+R or Cmd+Shift+R)';
 
+function getRuntimeConfig() {
+    if (typeof WM_CONFIG !== 'undefined') return WM_CONFIG;
+    if (typeof BE_CONFIG !== 'undefined') return BE_CONFIG;
+    return null;
+}
+
 function chromeStorageGet(key) {
     return new Promise((resolve, reject) => {
         try {
@@ -77,7 +83,8 @@ async function isAuthenticated() {
 }
 
 function getApiBase() {
-    return typeof WM_CONFIG !== 'undefined' ? WM_CONFIG.API_URL : 'https://wingman-lyart-seven.vercel.app';
+    const config = getRuntimeConfig();
+    return config?.API_URL || 'https://wingman-lyart-seven.vercel.app';
 }
 
 async function getContentAccessToken() {
@@ -116,6 +123,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         apiFetch,
         chromeStorageGet,
+        getRuntimeConfig,
         isAuthenticated,
         getApiBase,
         getContentAccessToken,
