@@ -502,8 +502,46 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
         const { messageIds } = await fetchMessageIds(provider_token, effectiveHistoryId);
         logger.info({ userId: req.userId, count: messageIds.length, incremental: !!effectiveHistoryId }, 'gmail_message_ids_fetched');
 
+        // Re-queue any jobs that are 'done'/'error' but have no vectors.
+        // This handles post-migration scenarios where all vectors were wiped but jobs
+        // stayed 'done', so the main sync loop (which skips unchanged messages) would
+        // never re-create them. Must run before responding so the client gets an
+        // accurate queued count and starts the indexing poller.
+        let requeued = 0;
+        try {
+            const { data: doneJobs } = await supabase
+                .from('indexing_jobs')
+                .select('id, message_id')
+                .eq('user_id', req.userId)
+                .in('status', ['done', 'error'])
+                .limit(500);
+
+            if (doneJobs && doneJobs.length > 0) {
+                const msgIds = doneJobs.map(j => j.message_id);
+                const { data: existingVectors } = await supabase
+                    .from('gmail_message_vectors')
+                    .select('message_id')
+                    .eq('user_id', req.userId)
+                    .in('message_id', msgIds);
+
+                const vectoredSet = new Set((existingVectors || []).map(v => v.message_id));
+                const missing = doneJobs.filter(j => !vectoredSet.has(j.message_id));
+
+                if (missing.length > 0) {
+                    await supabase
+                        .from('indexing_jobs')
+                        .update({ status: 'pending', updated_at: new Date().toISOString() })
+                        .in('id', missing.map(j => j.id));
+                    requeued = missing.length;
+                    logger.info({ userId: req.userId, requeued }, 'requeued_missing_vectors');
+                }
+            }
+        } catch (requeueErr) {
+            logger.warn({ userId: req.userId, err: requeueErr.message }, 'requeue_check_failed');
+        }
+
         // Send immediate response to prevent Chrome MV3 service worker timeout (30s limit)
-        res.json({ processed: 0, queued: messageIds.length, status: 'Background sync started' });
+        res.json({ processed: 0, queued: messageIds.length + requeued, status: 'Background sync started' });
 
         // Process all the heavy message downloading and parsing entirely in the background
         setTimeout(async () => {
@@ -674,6 +712,56 @@ app.post('/gmail/send', requireAuth, async (req, res) => {
         logger.error({ userId: req.userId, err: error.message }, 'gmail_send_error');
         Sentry.captureException(error, { extra: { userId: req.userId } });
         res.status(500).json({ error: 'Failed to send emails' });
+    }
+});
+
+// Diagnostic endpoint — check DB state for semantic search debugging
+// DELETE THIS after search is confirmed working
+app.get('/debug/search-state', requireAuth, async (req, res) => {
+    try {
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+        // Count messages for this user
+        const { count: msgCount } = await supabase
+            .from('gmail_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', req.userId);
+
+        // Count vectors for this user
+        const { count: vecCount } = await supabase
+            .from('gmail_message_vectors')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', req.userId);
+
+        // Sample one vector to check its embedding length
+        const { data: sample } = await supabase
+            .from('gmail_message_vectors')
+            .select('id, chunk_type, embedding')
+            .eq('user_id', req.userId)
+            .limit(1)
+            .single();
+
+        // Count pending indexing jobs for this user
+        const { count: pendingJobs } = await supabase
+            .from('indexing_jobs')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', req.userId)
+            .eq('status', 'pending');
+
+        const embeddingDim = sample?.embedding
+            ? (Array.isArray(sample.embedding) ? sample.embedding.length : JSON.parse(sample.embedding).length)
+            : null;
+
+        res.json({
+            userId: req.userId,
+            gmail_messages: msgCount,
+            vectors_stored: vecCount,
+            pending_jobs: pendingJobs,
+            sample_vector_dim: embeddingDim,
+            sample_chunk_type: sample?.chunk_type || null
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

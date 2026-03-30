@@ -106,12 +106,31 @@ async function handleSidebarSync(silent) {
         }
 
         const queued = response.data.queued || 0;
-        syncStatus.textContent = `Synced ${response.data.processed} emails, ${queued} queued for indexing.`;
-        syncStatus.className = 'wm-sidebar-sync-status wm-sync-success';
+        const serverStatus = response.data.status || '';
 
-        // Trigger background indexing if there are queued jobs
+        // Server always returns processed=0 immediately — the actual email downloading
+        // happens in a background setTimeout on the server to avoid MV3's 30s timeout.
+        if (serverStatus === 'Sync already in progress') {
+            if (!silent) {
+                syncStatus.textContent = 'Sync already running — indexing continues in background.';
+                syncStatus.className = 'wm-sidebar-sync-status';
+                syncStatus.style.color = 'var(--wm-text-dim)';
+            }
+            return;
+        }
+
         if (queued > 0) {
-            processIndexingQueue(session.access_token, syncStatus);
+            syncStatus.textContent = `Syncing ${queued} emails in background...`;
+            syncStatus.className = 'wm-sidebar-sync-status';
+            syncStatus.style.color = 'var(--wm-text-dim)';
+
+            // Delay polling by 6 seconds — gives the server's background sync time to
+            // download emails and create indexing jobs before we start polling.
+            // Without this delay the poller finds an empty queue and exits immediately.
+            setTimeout(() => processIndexingQueue(session.access_token, syncStatus), 6000);
+        } else {
+            syncStatus.textContent = 'Already up to date.';
+            syncStatus.className = 'wm-sidebar-sync-status wm-sync-success';
         }
     } catch (err) {
         if (!silent) {
@@ -131,7 +150,10 @@ let _indexingInProgress = false;
 async function processIndexingQueue(token, statusEl) {
     if (_indexingInProgress) return;
     _indexingInProgress = true;
-    const MAX_ITERATIONS = 50; // safety limit
+    const MAX_ITERATIONS = 60; // safety cap (60 × 5 jobs = 300 emails max)
+    // Grace period: don't bail early on the first few iterations.
+    // The server's background sync may still be creating jobs while we poll.
+    const GRACE_ITERATIONS = 4;
     let totalProcessed = 0;
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
@@ -150,18 +172,22 @@ async function processIndexingQueue(token, statusEl) {
             const remaining = res.data.remaining || 0;
             totalProcessed += processed;
 
-            if (statusEl && remaining > 0) {
-                // Only show progress if this endpoint is actually doing work.
-                // If processed=0, the local worker is handling it — show a passive message.
-                statusEl.textContent = processed > 0
-                    ? `Indexing emails... ${totalProcessed} done, ${remaining} remaining`
-                    : `Indexing in background — ${remaining} emails queued`;
-                statusEl.className = 'wm-sidebar-sync-status';
-                statusEl.style.color = 'var(--wm-text-dim)';
+            if (statusEl) {
+                if (remaining > 0 || processed > 0) {
+                    statusEl.textContent = processed > 0
+                        ? `Indexing emails... ${totalProcessed} done, ${remaining} remaining`
+                        : `Indexing in background — ${remaining} emails queued`;
+                    statusEl.className = 'wm-sidebar-sync-status';
+                    statusEl.style.color = 'var(--wm-text-dim)';
+                }
             }
 
-            // If endpoint isn't processing anything, the local worker is running — stop polling
-            if (remaining === 0 || processed === 0) break;
+            // After the grace period, apply the early-exit conditions:
+            // • remaining=0 → truly done (or no jobs exist)
+            // • processed=0 → local worker is handling it, stop redundant polling
+            if (i >= GRACE_ITERATIONS) {
+                if (remaining === 0 || processed === 0) break;
+            }
 
             // Small delay between batches to avoid hammering the server
             await new Promise(r => setTimeout(r, 1000));

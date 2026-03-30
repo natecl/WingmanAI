@@ -26,7 +26,7 @@ async function embedQuery(openai, query) {
 async function vectorSearch(supabase, userId, queryVector, filters) {
     const params = {
         p_user_id: userId,
-        p_query_vector: JSON.stringify(queryVector),
+        p_query_vector: queryVector,   // raw array — PostgREST handles VECTOR(512) cast correctly
         p_match_count: 50,
         p_from_email: filters?.from || null,
         p_after: filters?.after || null,
