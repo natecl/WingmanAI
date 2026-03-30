@@ -111,7 +111,8 @@ BetterEmailV2/
 │   │   ├── auth.test.js             # Auth middleware tests
 │   │   ├── gmailService.test.js     # Gmail service tests
 │   │   ├── embeddingService.test.js # Embedding service tests
-│   │   └── searchService.test.js    # Search service tests
+│   │   ├── searchService.test.js    # Search service tests
+│   │   └── gmailSend.test.js        # Gmail send endpoint tests
 │   └── node_modules/                # (gitignored)
 ├── client/                          # Chrome Extension
 │   ├── manifest.json
@@ -142,7 +143,8 @@ BetterEmailV2/
 - `POST /gmail/sync` — Gmail email ingestion (requires auth, accepts provider_token)
 - `POST /search` — Semantic email search (requires auth, accepts query + filters)
 - `POST /draft-email` — Draft a single email from resume + job description (Claude Sonnet, requires auth)
-- `POST /draft-personalized-emails` — Draft personalized outreach emails to up to 3 leads. Scrapes arXiv + lead profile pages via Firecrawl, drafts with Claude using user resume. Returns `{ drafts: [{name, email, subject, body}] }`. Requires auth.
+- `POST /draft-personalized-emails` — Draft personalized outreach emails to up to 10 leads (configurable via `limit` param, defaults to 3, max 10). Scrapes arXiv + lead profile pages via Firecrawl, drafts with Claude using user resume. Returns `{ drafts: [{name, email, subject, body}] }`. Requires auth.
+- `POST /gmail/send` — Auto-send drafted emails via Gmail API. Accepts `{ provider_token, drafts: [{email, subject, body}] }`. Max 10 per request. Returns `{ results: [{email, success, messageId?, error?}], sent, total }`. Requires auth.
 - `POST /ai/classify-followup` — Classify if a sent email is a follow-up (Gemini Flash, requires auth)
 - `POST /ai/summarize-email` — 4–6 word AI summary of an email (Gemini Flash, requires auth)
 
@@ -150,8 +152,8 @@ BetterEmailV2/
 - **Copilot Sidebar** — Persistent right-aligned sidebar that is the main control center for all BetterEmail features. Gmail shifts left to accommodate the 350px sidebar. Replaces the old extension popup as the primary UI.
 - **Email Quality Analyzer** — Sidebar compose analyzer reads from the active Gmail compose window and provides context-aware AI feedback. Also supports AI-powered email drafting from resume.
 - **Follow-up Reminders** — Toast notification after sending, with custom scheduling. Reminders are also displayed in the sidebar's Main tab with AI-generated summaries (Gemini Flash). Smart heuristics auto-dismiss reminders when a reply is sent in the same thread (Re: prefix or threadId match).
-- **Web Scraper / Lead Finder** — AI-powered contact discovery with 3-layer caching (prompt_cache → email_leads → live pipeline). Accessible via sidebar Leads tab. After results load, a "Draft emails to top 3" button appears to auto-draft personalized outreach emails.
-- **Personalized Lead Email Drafting** — For each of the top 3 leads, scrapes arXiv and the lead's profile page (via Firecrawl), then drafts a personalized cold email with Claude Sonnet using the user's saved resume. Opens a Gmail compose window for each draft automatically.
+- **Lead Finder Agent** — Fully automated agent in the sidebar Leads tab. User enters a search query (e.g., "CS professors at UF", "AI startups in San Francisco"), organization/university name, and number of emails to send (max 10). The agent scrapes contacts via Firecrawl (3-layer caching), drafts personalized emails with Claude Sonnet + user resume, and auto-sends all emails via Gmail API. University input supports a hardcoded domain map (~24 universities) with dynamic Firecrawl fallback for unknown organizations. Progress is shown in a real-time log.
+
 - **Authentication** — Supabase Google OAuth via chrome.identity, JWT middleware for protected routes. Sign-in/out is handled directly in the sidebar. Auth state changes are detected via `chrome.storage.onChanged` and the sidebar unlocks/locks instantly without page refresh.
 - **Semantic Search** — Natural language email search using OpenAI embeddings + Supabase pgvector, with Gmail sync, background indexing worker. Available in both the sidebar Search tab AND the Gmail search bar overlay with animated glow ring effect (toggled via Shift key or toggle button).
 - **Resume Upload** — PDF resume upload in sidebar Settings tab for AI-powered email drafting.

@@ -26,7 +26,8 @@ const {
     checkEmailLeads,
     searchWithFirecrawl,
     scrapeEmails,
-    upsertResults
+    upsertResults,
+    lookupDomain
 } = require('./services/scraperService');
 const { chunkText, buildSummaryText, embedTexts } = require('./services/embeddingService');
 const { requireAuth } = require('./middleware/auth');
@@ -429,7 +430,7 @@ app.post('/scrape-emails', requireAuth, async (req, res) => {
 
         // Step 4: Full pipeline - Firecrawl Search → Scrape
         metrics.inc('scrape', 'live_runs');
-        const searchedUrls = await searchWithFirecrawl(firecrawl, prompt);
+        const searchedUrls = await searchWithFirecrawl(firecrawl, prompt, domain);
         const scrapedResults = await scrapeEmails(firecrawl, searchedUrls);
 
         // Step 5: Save results to database
@@ -586,6 +587,84 @@ app.post('/gmail/sync', requireAuth, async (req, res) => {
         logger.error({ userId: req.userId, err: error.message }, 'sync_error');
         Sentry.captureException(error, { extra: { userId: req.userId } });
         res.status(500).json({ error: 'Failed to sync emails' });
+    }
+});
+
+// Gmail Send endpoint — auto-send drafted emails via Gmail API
+app.post('/gmail/send', requireAuth, async (req, res) => {
+    try {
+        const { provider_token, drafts } = req.body;
+
+        if (!provider_token) {
+            return res.status(400).json({ error: 'provider_token is required' });
+        }
+        if (!Array.isArray(drafts) || drafts.length === 0) {
+            return res.status(400).json({ error: 'drafts array is required and must not be empty' });
+        }
+        if (drafts.length > 10) {
+            return res.status(400).json({ error: 'Maximum 10 emails per request' });
+        }
+
+        const fromEmail = req.userEmail;
+        const results = [];
+
+        for (const draft of drafts) {
+            const { email: toEmail, subject, body } = draft;
+            try {
+                if (!toEmail || !subject || !body) {
+                    results.push({ email: toEmail || 'unknown', success: false, error: 'Missing email, subject, or body' });
+                    continue;
+                }
+
+                // Build RFC 2822 message
+                const messageParts = [
+                    `From: ${fromEmail}`,
+                    `To: ${toEmail}`,
+                    `Subject: ${subject}`,
+                    'Content-Type: text/plain; charset="UTF-8"',
+                    'MIME-Version: 1.0',
+                    '',
+                    body
+                ];
+                const rawMessage = messageParts.join('\r\n');
+
+                // Base64url encode
+                const encoded = Buffer.from(rawMessage)
+                    .toString('base64')
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=+$/, '');
+
+                // Send via Gmail API
+                const gmailRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${provider_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ raw: encoded })
+                });
+
+                if (!gmailRes.ok) {
+                    const errData = await gmailRes.json().catch(() => ({}));
+                    const errMsg = errData.error?.message || `Gmail API error ${gmailRes.status}`;
+                    results.push({ email: toEmail, success: false, error: errMsg });
+                } else {
+                    const data = await gmailRes.json();
+                    results.push({ email: toEmail, success: true, messageId: data.id });
+                }
+            } catch (sendErr) {
+                results.push({ email: toEmail || 'unknown', success: false, error: sendErr.message });
+            }
+        }
+
+        const sent = results.filter(r => r.success).length;
+        logger.info({ userId: req.userId, sent, total: drafts.length }, 'gmail_send_complete');
+        res.json({ results, sent, total: drafts.length });
+    } catch (error) {
+        logger.error({ userId: req.userId, err: error.message }, 'gmail_send_error');
+        Sentry.captureException(error, { extra: { userId: req.userId } });
+        res.status(500).json({ error: 'Failed to send emails' });
     }
 });
 
@@ -823,15 +902,16 @@ app.post('/draft-email', requireAuth, async (req, res) => {
     }
 });
 
-// Draft personalized emails to up to 3 leads using arXiv research + user resume
+// Draft personalized emails to leads using arXiv research + user resume
 app.post('/draft-personalized-emails', requireAuth, async (req, res) => {
     try {
-        const { leads, purpose } = req.body;
+        const { leads, purpose, limit } = req.body;
         if (!Array.isArray(leads) || leads.length === 0) {
             return res.status(400).json({ error: 'leads array is required' });
         }
 
-        const topLeads = leads.slice(0, 3);
+        const maxLeads = Math.min(limit || 3, 10);
+        const topLeads = leads.slice(0, maxLeads);
 
         // Validate lead fields
         for (const lead of topLeads) {
@@ -933,7 +1013,8 @@ Write a cold email from the sender to the recipient. You MUST follow every rule 
 - **Tight and compelling**: 160–220 words in the body. Every sentence must earn its place.
 - **Output**: Valid JSON with exactly two fields — "subject" (string, specific and compelling, not generic) and "body" (string, plain text, no greeting like "Dear X" or "Hi", no signature — just the body paragraphs).`;
 
-            const purposeSection = purpose ? `\n\nEmail purpose/goal (make this the central focus): ${purpose}` : '';
+            const effectivePurpose = purpose || 'Interested in learning more about your work and exploring potential collaboration';
+            const purposeSection = `\n\nEmail purpose/goal (make this the central focus): ${effectivePurpose}`;
             const userMessage = `SENDER RESUME:\n${userData.resume_text.substring(0, 4000)}\n\n===\n\nRECIPIENT: ${name}${detail ? ` — ${detail}` : ''}\nEMAIL: ${lead.email}\n\n===\n\nRESEARCH CONTEXT (use specific details from this):\n${contextBlock || 'No research context found — rely on resume and recipient name/role.'}${purposeSection}`;
 
             try {

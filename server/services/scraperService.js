@@ -1,38 +1,58 @@
 const crypto = require('crypto');
 
+// Common university/org keyword → domain mapping (module-level for reuse)
+const domainMap = {
+    'uf': 'ufl.edu',
+    'university of florida': 'ufl.edu',
+    'mit': 'mit.edu',
+    'stanford': 'stanford.edu',
+    'harvard': 'harvard.edu',
+    'berkeley': 'berkeley.edu',
+    'uc berkeley': 'berkeley.edu',
+    'ucla': 'ucla.edu',
+    'georgia tech': 'gatech.edu',
+    'carnegie mellon': 'cmu.edu',
+    'cmu': 'cmu.edu',
+    'columbia': 'columbia.edu',
+    'yale': 'yale.edu',
+    'princeton': 'princeton.edu',
+    'cornell': 'cornell.edu',
+    'nyu': 'nyu.edu',
+    'umich': 'umich.edu',
+    'university of michigan': 'umich.edu',
+    'caltech': 'caltech.edu',
+    'usf': 'usf.edu',
+    'fsu': 'fsu.edu',
+    'ucf': 'ucf.edu',
+    'fiu': 'fiu.edu'
+};
+
+/**
+ * Look up a domain from an organization/university name.
+ * Returns { domain, matched } where matched=true if found in hardcoded map.
+ */
+function lookupDomain(org) {
+    if (!org) return { domain: null, matched: false };
+    const key = org.toLowerCase().trim();
+    for (const [keyword, domainValue] of Object.entries(domainMap)) {
+        if (key.includes(keyword) || keyword.includes(key)) {
+            return { domain: domainValue, matched: true };
+        }
+    }
+    return { domain: null, matched: false };
+}
+
 /**
  * Normalize user prompt: lowercase, trim whitespace.
  * Extract a likely domain keyword from the prompt.
+ * Accepts optional domainOverride to skip auto-detection.
  */
-function normalizePrompt(prompt) {
+function normalizePrompt(prompt, domainOverride) {
     const normalized = prompt.toLowerCase().trim().replace(/\s+/g, ' ');
 
-    // Common university/org keyword → domain mapping
-    const domainMap = {
-        'uf': 'ufl.edu',
-        'university of florida': 'ufl.edu',
-        'mit': 'mit.edu',
-        'stanford': 'stanford.edu',
-        'harvard': 'harvard.edu',
-        'berkeley': 'berkeley.edu',
-        'uc berkeley': 'berkeley.edu',
-        'ucla': 'ucla.edu',
-        'georgia tech': 'gatech.edu',
-        'carnegie mellon': 'cmu.edu',
-        'cmu': 'cmu.edu',
-        'columbia': 'columbia.edu',
-        'yale': 'yale.edu',
-        'princeton': 'princeton.edu',
-        'cornell': 'cornell.edu',
-        'nyu': 'nyu.edu',
-        'umich': 'umich.edu',
-        'university of michigan': 'umich.edu',
-        'caltech': 'caltech.edu',
-        'usf': 'usf.edu',
-        'fsu': 'fsu.edu',
-        'ucf': 'ucf.edu',
-        'fiu': 'fiu.edu'
-    };
+    if (domainOverride) {
+        return { normalized, domain: domainOverride };
+    }
 
     let domain = 'general';
     for (const [keyword, domainValue] of Object.entries(domainMap)) {
@@ -98,8 +118,9 @@ async function checkEmailLeads(supabase, domain) {
  * Use Firecrawl's web search to find relevant URLs for the given prompt.
  * Returns array of URL strings from real search results.
  */
-async function searchWithFirecrawl(firecrawl, prompt) {
-    const searchQuery = `${prompt} email contact faculty directory`;
+async function searchWithFirecrawl(firecrawl, prompt, domain) {
+    const siteFilter = (domain && domain !== 'general') ? ` site:${domain}` : '';
+    const searchQuery = `${prompt} email contact faculty directory${siteFilter}`;
     const results = await firecrawl.search(searchQuery, { limit: 10 });
     if (!results.success || !results.data) return [];
     return results.data
@@ -264,5 +285,6 @@ module.exports = {
     checkEmailLeads,
     searchWithFirecrawl,
     scrapeEmails,
-    upsertResults
+    upsertResults,
+    lookupDomain
 };

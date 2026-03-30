@@ -5,7 +5,8 @@ const {
     checkEmailLeads,
     searchWithFirecrawl,
     scrapeEmails,
-    upsertResults
+    upsertResults,
+    lookupDomain
 } = require('../services/scraperService');
 
 // --- Mock factories ---
@@ -419,5 +420,93 @@ describe('Security', () => {
         expect(result.length).toBe(1);
         expect(result[0].name).not.toContain('<script>');
         expect(result[0].detail).not.toContain('<script>');
+    });
+});
+
+
+// =========================================================
+// lookupDomain
+// =========================================================
+
+describe('lookupDomain', () => {
+    test('returns matched domain for known university abbreviation', () => {
+        const result = lookupDomain('UF');
+        expect(result.domain).toBe('ufl.edu');
+        expect(result.matched).toBe(true);
+    });
+
+    test('returns matched domain for full university name', () => {
+        const result = lookupDomain('University of Florida');
+        expect(result.domain).toBe('ufl.edu');
+        expect(result.matched).toBe(true);
+    });
+
+    test('is case insensitive', () => {
+        const result = lookupDomain('MIT');
+        expect(result.domain).toBe('mit.edu');
+        expect(result.matched).toBe(true);
+    });
+
+    test('returns null domain for unknown organization', () => {
+        const result = lookupDomain('University of Nowhere');
+        expect(result.domain).toBeNull();
+        expect(result.matched).toBe(false);
+    });
+
+    test('returns null domain for empty input', () => {
+        const result = lookupDomain('');
+        expect(result.domain).toBeNull();
+        expect(result.matched).toBe(false);
+    });
+
+    test('returns null domain for null/undefined input', () => {
+        expect(lookupDomain(null).matched).toBe(false);
+        expect(lookupDomain(undefined).matched).toBe(false);
+    });
+});
+
+
+// =========================================================
+// normalizePrompt with domainOverride
+// =========================================================
+
+describe('normalizePrompt with domainOverride', () => {
+    test('uses domainOverride when provided', () => {
+        const result = normalizePrompt('CS professors', 'custom.edu');
+        expect(result.domain).toBe('custom.edu');
+        expect(result.normalized).toBe('cs professors');
+    });
+
+    test('falls back to auto-detection when no override', () => {
+        const result = normalizePrompt('UF CS professors');
+        expect(result.domain).toBe('ufl.edu');
+    });
+});
+
+
+// =========================================================
+// searchWithFirecrawl with domain
+// =========================================================
+
+describe('searchWithFirecrawl with domain', () => {
+    test('appends site: filter when domain is provided', async () => {
+        const firecrawl = mockFirecrawl({}, []);
+        await searchWithFirecrawl(firecrawl, 'CS professors', 'ufl.edu');
+        const query = firecrawl.search.mock.calls[0][0];
+        expect(query).toContain('site:ufl.edu');
+    });
+
+    test('does not append site: filter when domain is general', async () => {
+        const firecrawl = mockFirecrawl({}, []);
+        await searchWithFirecrawl(firecrawl, 'CS professors', 'general');
+        const query = firecrawl.search.mock.calls[0][0];
+        expect(query).not.toContain('site:');
+    });
+
+    test('does not append site: filter when domain is undefined', async () => {
+        const firecrawl = mockFirecrawl({}, []);
+        await searchWithFirecrawl(firecrawl, 'CS professors');
+        const query = firecrawl.search.mock.calls[0][0];
+        expect(query).not.toContain('site:');
     });
 });

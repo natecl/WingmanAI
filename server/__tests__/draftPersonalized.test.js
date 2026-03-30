@@ -117,7 +117,7 @@ describe('POST /draft-personalized-emails', () => {
         });
     });
 
-    it('caps at 3 leads even when more are provided', async () => {
+    it('defaults to 3 leads when no limit is provided', async () => {
         mockSupabaseWithResume();
         mockClaudeSuccess();
 
@@ -134,6 +134,42 @@ describe('POST /draft-personalized-emails', () => {
 
         expect(res.status).toBe(200);
         expect(res.body.drafts).toHaveLength(3);
+    });
+
+    it('respects limit parameter up to 10', async () => {
+        mockSupabaseWithResume();
+        mockClaudeSuccess();
+
+        const manyLeads = [
+            ...SAMPLE_LEADS,
+            { name: 'Dr. Dave', email: 'dave@ufl.edu', detail: 'Extra' },
+            { name: 'Dr. Eve', email: 'eve@ufl.edu', detail: 'Extra' }
+        ];
+
+        const res = await request(app)
+            .post('/draft-personalized-emails')
+            .set('Authorization', 'Bearer test-token')
+            .send({ leads: manyLeads, limit: 5 });
+
+        expect(res.status).toBe(200);
+        expect(res.body.drafts).toHaveLength(5);
+    });
+
+    it('caps at 10 leads even when limit is higher', async () => {
+        mockSupabaseWithResume();
+        mockClaudeSuccess();
+
+        const manyLeads = Array.from({ length: 15 }, (_, i) => ({
+            name: `Dr. Test${i}`, email: `test${i}@ufl.edu`, detail: 'Prof'
+        }));
+
+        const res = await request(app)
+            .post('/draft-personalized-emails')
+            .set('Authorization', 'Bearer test-token')
+            .send({ leads: manyLeads, limit: 15 });
+
+        expect(res.status).toBe(200);
+        expect(res.body.drafts).toHaveLength(10);
     });
 
     it('works with a single lead', async () => {

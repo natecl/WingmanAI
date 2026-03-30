@@ -186,16 +186,20 @@ function buildSidebarHTML() {
                     <span>Lead Finder</span>
                 </div>
                 <input type="text" class="wm-sidebar-lead-input" id="wm-sidebar-lead-input"
-                    placeholder="e.g. UF Computer Science professors">
+                    placeholder="e.g. CS professors at UF, startups in San Francisco">
+                <input type="text" class="wm-sidebar-lead-input" id="wm-sidebar-lead-org"
+                    placeholder="Organization/University (e.g. UF, MIT, Y Combinator)">
+                <input type="number" class="wm-sidebar-lead-input wm-sidebar-lead-count" id="wm-sidebar-lead-count"
+                    min="1" max="10" value="5" placeholder="# of emails to send (max 10)">
                 <button class="wm-sidebar-lead-btn" id="wm-sidebar-lead-btn">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"/>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        <path d="M22 2L11 13"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
                     </svg>
-                    Find Leads
+                    Find &amp; Send
                 </button>
                 <div class="wm-sidebar-lead-status" id="wm-sidebar-lead-status"></div>
-                <div class="wm-sidebar-lead-results" id="wm-sidebar-lead-results"></div>
+                <div class="wm-sidebar-lead-log" id="wm-sidebar-lead-log"></div>
             </div>
         </div>
 

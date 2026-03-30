@@ -1,144 +1,7 @@
-/* Wingman V2 - Sidebar lead finder section */
+/* Wingman V2 - Sidebar Lead Finder Agent */
 
 /* =========================================================
-   RECOMMENDED LEADS CARDS
-========================================================= */
-
-.wm-leads-recommended {
-    margin-bottom: 14px;
-}
-
-.wm-leads-rec-header {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--wm-primary);
-    margin-bottom: 8px;
-    padding: 0 2px;
-}
-
-.wm-lead-card {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: linear-gradient(135deg, rgba(142, 125, 255, 0.07), rgba(94, 148, 255, 0.04));
-    border: 1px solid rgba(142, 125, 255, 0.22);
-    border-radius: 10px;
-    padding: 10px 12px;
-    margin-bottom: 7px;
-    transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.wm-lead-card:last-child {
-    margin-bottom: 0;
-}
-
-.wm-lead-card:hover {
-    border-color: rgba(142, 125, 255, 0.45);
-    background: linear-gradient(135deg, rgba(142, 125, 255, 0.11), rgba(94, 148, 255, 0.07));
-}
-
-.wm-lead-card-body {
-    flex: 1;
-    min-width: 0;
-}
-
-.wm-lead-card-name {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--wm-text);
-    margin-bottom: 2px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.wm-lead-card-email {
-    display: block;
-    font-size: 0.71rem;
-    color: var(--wm-primary);
-    text-decoration: none;
-    margin-bottom: 5px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    opacity: 0.85;
-}
-
-.wm-lead-card-email:hover {
-    text-decoration: underline;
-    opacity: 1;
-}
-
-.wm-lead-card-detail {
-    font-size: 0.72rem;
-    color: var(--wm-text-dim);
-    margin: 0;
-    line-height: 1.45;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.wm-lead-summary-loading {
-    display: inline-block;
-    color: var(--wm-text-dim);
-    font-size: 0.7rem;
-    opacity: 0.6;
-    animation: wm-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes wm-pulse {
-    0%, 100% { opacity: 0.35; }
-    50% { opacity: 0.8; }
-}
-
-.wm-lead-card-draft-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
-    padding: 6px 11px;
-    background: rgba(142, 125, 255, 0.13);
-    border: 1px solid rgba(142, 125, 255, 0.38);
-    border-radius: 7px;
-    color: var(--wm-primary);
-    font-size: 0.72rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-}
-
-.wm-lead-card-draft-btn:hover {
-    background: rgba(142, 125, 255, 0.25);
-    border-color: var(--wm-primary);
-    transform: translateY(-1px);
-}
-
-.wm-lead-card-draft-btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.wm-leads-rest-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--wm-text-dim);
-    margin: 14px 0 7px;
-    padding: 0 2px;
-}
-
-/* =========================================================
-   SIDEBAR: LEAD FINDER SECTION
+   SIDEBAR: LEAD FINDER INPUTS & BUTTON
 ========================================================= */
 
 .wm-sidebar-lead-input {
@@ -163,6 +26,16 @@
 
 .wm-sidebar-lead-input::placeholder {
     color: var(--wm-text-dim);
+}
+
+.wm-sidebar-lead-count {
+    -moz-appearance: textfield;
+}
+
+.wm-sidebar-lead-count::-webkit-outer-spin-button,
+.wm-sidebar-lead-count::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .wm-sidebar-lead-btn {
@@ -193,6 +66,10 @@
     transform: none;
 }
 
+/* =========================================================
+   STATUS BAR
+========================================================= */
+
 .wm-sidebar-lead-status {
     margin-top: 0.5rem;
     padding: 8px 12px;
@@ -220,265 +97,35 @@
     color: #ff6b6b;
 }
 
-.wm-sidebar-lead-results {
+/* =========================================================
+   PROGRESS LOG
+========================================================= */
+
+.wm-sidebar-lead-log {
     margin-top: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
-.wm-sidebar-lead-table {
-    width: 100%;
-    border-collapse: collapse;
+.wm-lead-log-entry {
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    border-left: 3px solid var(--wm-border);
+    border-radius: 0 6px 6px 0;
+    background: rgba(255, 255, 255, 0.02);
     font-size: 0.75rem;
-}
-
-.wm-sidebar-lead-table thead th {
-    text-align: left;
-    padding: 6px 8px;
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--wm-text-dim);
-    font-weight: 600;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-bottom: 1px solid var(--wm-border);
-}
-
-.wm-sidebar-lead-table tbody td {
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--wm-border);
-    color: var(--wm-text);
-    vertical-align: top;
-    max-width: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.wm-sidebar-lead-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.04);
-}
-
-.wm-sidebar-lead-table a {
-    color: var(--wm-primary);
-    text-decoration: none;
-}
-
-.wm-sidebar-lead-table a:hover {
-    text-decoration: underline;
-}
-
-.wm-leads-draft-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    margin-top: 10px;
-    padding: 8px 14px;
-    background: linear-gradient(135deg, rgba(142, 125, 255, 0.18), rgba(94, 148, 255, 0.18));
-    border: 1px solid rgba(142, 125, 255, 0.4);
-    border-radius: 8px;
-    color: var(--wm-primary);
-    font-size: 0.78rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.wm-leads-draft-btn:hover {
-    background: linear-gradient(135deg, rgba(142, 125, 255, 0.28), rgba(94, 148, 255, 0.28));
-    border-color: var(--wm-primary);
-    transform: translateY(-1px);
-}
-
-.wm-leads-draft-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* =========================================================
-   PER-ROW NAME-CELL OVERLAY DRAFT BUTTON
-========================================================= */
-
-.wm-lead-name-cell {
-    position: relative;
-    overflow: visible;
-}
-
-.wm-lead-name-text {
-    transition: opacity 0.15s ease;
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.wm-sidebar-lead-table tbody tr:hover .wm-lead-name-text {
-    opacity: 0.2;
-}
-
-.wm-lead-row-draft-btn {
-    position: absolute;
-    inset: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 0 6px;
-    background: rgba(18, 14, 36, 0.92);
-    border: 1px solid rgba(142, 125, 255, 0.45);
-    border-radius: 5px;
-    color: var(--wm-primary);
-    font-size: 0.68rem;
-    font-weight: 600;
-    cursor: pointer;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-    white-space: nowrap;
-    z-index: 5;
-}
-
-.wm-sidebar-lead-table tbody tr:hover .wm-lead-row-draft-btn {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.wm-lead-row-draft-btn:hover {
-    background: rgba(142, 125, 255, 0.18);
-    border-color: var(--wm-primary);
-}
-
-.wm-lead-row-draft-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-/* =========================================================
-   PURPOSE MODAL
-========================================================= */
-
-.wm-purpose-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    z-index: 2147483646;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(2px);
-    animation: wm-fade-in 0.15s ease;
-}
-
-.wm-purpose-modal {
-    background: #1a1a2e;
-    border: 1px solid var(--wm-border);
-    border-radius: 14px;
-    padding: 20px;
-    width: 360px;
-    max-width: calc(100vw - 40px);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
-    animation: wm-slide-up 0.18s ease;
-}
-
-.wm-purpose-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    font-size: 0.88rem;
+    line-height: 1.4;
     color: var(--wm-text);
 }
 
-.wm-purpose-modal-header strong {
-    color: var(--wm-primary);
+.wm-lead-log-entry.log-success {
+    border-left-color: #4caf50;
 }
 
-.wm-purpose-modal-close {
-    background: none;
-    border: none;
-    color: var(--wm-text-dim);
-    font-size: 1.2rem;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0 2px;
-    transition: color 0.15s;
+.wm-lead-log-entry.log-error {
+    border-left-color: #ff6b6b;
 }
 
-.wm-purpose-modal-close:hover {
-    color: var(--wm-text);
-}
-
-.wm-purpose-modal-desc {
-    font-size: 0.78rem;
-    color: var(--wm-text-dim);
-    margin: 0 0 10px;
-    line-height: 1.5;
-}
-
-.wm-purpose-modal-input {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--wm-border);
-    border-radius: 8px;
-    color: var(--wm-text);
-    padding: 10px 12px;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.82rem;
-    resize: vertical;
-    outline: none;
-    box-sizing: border-box;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.wm-purpose-modal-input:focus {
-    border-color: var(--wm-primary);
-    box-shadow: 0 0 0 2px rgba(142, 125, 255, 0.2);
-}
-
-.wm-purpose-modal-input::placeholder {
-    color: var(--wm-text-dim);
-}
-
-.wm-purpose-modal-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 14px;
-}
-
-.wm-purpose-cancel-btn {
-    padding: 8px 14px;
-    background: transparent;
-    border: 1px solid var(--wm-border);
-    border-radius: 8px;
-    color: var(--wm-text-dim);
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.wm-purpose-cancel-btn:hover {
-    border-color: var(--wm-text-dim);
-    color: var(--wm-text);
-}
-
-.wm-purpose-submit-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: var(--wm-primary);
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.wm-purpose-submit-btn:hover {
-    background: var(--wm-primary-dark);
-    transform: translateY(-1px);
+.wm-lead-log-entry.log-info {
+    border-left-color: var(--wm-primary);
 }
